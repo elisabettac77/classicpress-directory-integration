@@ -63,8 +63,8 @@ abstract class Abstract_Update {
 				'RequiresPHP'     => $single_data['meta']['requires_php'],
 				'RequiresCP'      => $single_data['meta']['requires_cp'],
 				'active_installs' => $single_data['meta']['active_installations'],
-				// Include parent_slug for Phase 2 child theme support
-				'ParentSlug'      => isset( $single_data['meta']['parent_slug'] ) ? $single_data['meta']['parent_slug'] : '', 
+				// Include parent_theme for Phase 2 child theme support
+				'ParentSlug'      => isset( $single_data['meta']['parent_theme'] ) ? $single_data['meta']['parent_theme'] : '', 
 			);
 		}
 
