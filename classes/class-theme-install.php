@@ -9,14 +9,38 @@ class ThemeInstall extends Abstract_Install {
 	}
 
 	public function create_menu() {
-		// BUGFIX: Changed from install_plugins to install_themes
-		if ( ! current_user_can( 'install_themes' ) ) { return; }
-		// ... add_submenu_page logic using 'themes.php' and 'install_themes'
+		if ( ! current_user_can( 'install_themes' ) ) {
+			return;
+		}
+
+		$this->page = add_submenu_page(
+			'themes.php',
+			esc_html__( 'ClassicPress Themes', 'classicpress-directory-integration' ),
+			esc_html__( 'Install CP Themes', 'classicpress-directory-integration' ),
+			'install_themes',
+			'classicpress-directory-integration-theme-install',
+			array( $this, 'render_menu' ),
+			2
+		);
+
+		add_action( 'load-' . $this->page, array( $this, 'activate_action' ) );
+		add_action( 'load-' . $this->page, array( $this, 'install_action' ) );
 	}
 
 	public function rename_menu() {
-		if ( ! current_user_can( 'install_themes' ) ) { return; }
-		// ... theme specific menu renaming
+		if ( ! current_user_can( 'install_themes' ) ) {
+			return;
+		}
+
+		global $submenu;
+		if ( isset( $submenu['themes.php'] ) ) {
+			foreach ( $submenu['themes.php'] as $key => $value ) {
+				if ( $value[2] !== 'theme-install.php' ) {
+					continue;
+				}
+				$submenu['themes.php'][ $key ][0] = esc_html__( 'Install WP Themes', 'classicpress-directory-integration' ); // phpcs:ignore
+			}
+		}
 	}
 
 	protected function get_local_cp_items() {
