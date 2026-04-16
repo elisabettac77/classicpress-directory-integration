@@ -43,9 +43,27 @@ class PluginInstall extends Abstract_Install {
 		}
 	}
 
-	protected function get_local_cp_items() {
+		protected function get_local_cp_items() {
 		if ( $this->local_cp_items !== false ) { return $this->local_cp_items; }
-		// ... get_plugins() logic
+		
+		if ( ! function_exists( 'get_plugins' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
+		
+		$all_plugins = get_plugins();
+		$cp_plugins  = array();
+		
+		foreach ( $all_plugins as $slug => $plugin ) {
+			$cp_plugins[ dirname( $slug ) ] = array(
+				'WPSlug'   => $slug,
+				'Name'     => $plugin['Name'],
+				'Version'  => $plugin['Version'],
+				'PluginURI'=> isset( $plugin['PluginURI'] ) ? $plugin['PluginURI'] : '',
+				'Active'   => is_plugin_active( $slug ),
+			);
+		}
+		
+		$this->local_cp_items = $cp_plugins;
 		return $this->local_cp_items;
 	}
 
