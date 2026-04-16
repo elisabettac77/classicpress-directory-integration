@@ -107,6 +107,7 @@ class ThemeInstall extends Abstract_Install {
 		$slug = sanitize_key( wp_unslash( $_REQUEST['slug'] ) );
 
 		// 1. Get Theme data from the API
+		// Fix: explicitly pass the required $args and $type parameters to do_directory_request
 		$args     = array( 'byslug' => $slug, '_fields' => 'meta,title' );
 		$response = $this::do_directory_request( $args, 'themes' );
 
@@ -121,8 +122,9 @@ class ThemeInstall extends Abstract_Install {
 		$theme_name       = $theme_data['title']['rendered'];
 
 		// 2. CHECK API DATA FOR CHILD THEME DEPENDENCY
-		if ( ! empty( $theme_data['meta']['parent_slug'] ) ) {
-			$parent_slug = sanitize_key( $theme_data['meta']['parent_slug'] );
+		// CHANGED: parent_slug to parent_theme
+		if ( ! empty( $theme_data['meta']['parent_theme'] ) ) {
+			$parent_slug = sanitize_key( $theme_data['meta']['parent_theme'] );
 			
 			// 3. Check local filesystem if parent is missing
 			$local_themes = wp_get_themes();
