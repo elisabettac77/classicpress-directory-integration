@@ -49,11 +49,89 @@ class PluginInstall extends Abstract_Install {
 		return $this->local_cp_items;
 	}
 
+		// Deal with activation requests
 	public function activate_action() {
-		// ... plugin activation logic using activate_plugin()
+
+		// Load local plugins information
+		$local_cp_plugins = $this->get_local_cp_items();
+
+		// Security checks
+		if ( ! isset( $_GET['action'] ) ) { return; }
+		if ( $_GET['action'] !== 'activate' ) { return; }
+		if ( ! check_admin_referer( 'activate', '_cpdi' ) ) { return; }
+		if ( ! current_user_can( 'activate_plugins' ) ) { return; }
+		if ( ! isset( $_REQUEST['slug'] ) ) { return; }
+
+		// Check if plugin slug is proper
+		$slug = sanitize_key( wp_unslash( $_REQUEST['slug'] ) );
+		if ( ! array_key_exists( $slug, $local_cp_plugins ) ) { return; }
+
+		// Activate plugin
+		$result = activate_plugin( $local_cp_plugins[ $slug ]['WPSlug'] );
+
+		if ( $result !== null ) {
+			// Translators: %1$s is the plugin name.
+			$message = sprintf( esc_html__( 'Error activating %1$s.', 'classicpress-directory-integration' ), $local_cp_plugins[ $slug ]['Name'] );
+			$this->add_notice( $message, true );
+		} else {
+			// Translators: %1$s is the plugin name.
+			$message = sprintf( esc_html__( '%1$s activated.', 'classicpress-directory-integration' ), $local_cp_plugins[ $slug ]['Name'] );
+			$this->add_notice( $message, false );
+		}
+
+		$sendback = remove_query_arg( array( 'action', 'slug', '_cpdi' ), wp_get_referer() );
+		wp_safe_redirect( $sendback );
+		exit;
 	}
 
+	// Deal with installation requests
 	public function install_action() {
-		// ... standard plugin install logic using \Plugin_Upgrader
+
+		// Security checks
+		if ( ! isset( $_GET['action'] ) ) { return; }
+		if ( $_GET['action'] !== 'install' ) { return; }
+		if ( ! check_admin_referer( 'install', '_cpdi' ) ) { return; }
+		if ( ! current_user_can( 'install_plugins' ) ) { return; }
+		if ( ! isset( $_REQUEST['slug'] ) ) { return; }
+
+		// Check if plugin slug is proper
+		$slug = sanitize_key( wp_unslash( $_REQUEST['slug'] ) );
+
+		// Get github release file via API
+		$args     = array(
+			'byslug'  => $slug,
+			'_fields' => 'meta,title',
+		);
+		$response = self::do_directory_request( $args, 'plugins' );
+		
+		if ( ! $response['success'] || ! isset( $response['response'][0]['meta']['download_link'] ) ) {
+			$message = esc_html__( 'API error: Could not fetch download link.', 'classicpress-directory-integration' );
+			$this->add_notice( $message, true );
+			$sendback = remove_query_arg( array( 'action', 'slug', '_cpdi' ), wp_get_referer() );
+			wp_safe_redirect( $sendback );
+			exit;
+		}
+
+		$installation_url = $response['response'][0]['meta']['download_link'];
+		$plugin_name      = $response['response'][0]['title']['rendered'];
+
+		// Install plugin
+		$skin     = new PluginInstallSkin( array( 'type' => 'plugin' ) );
+		$upgrader = new \Plugin_Upgrader( $skin );
+		$response = $upgrader->install( $installation_url );
+
+		if ( $response !== true ) {
+			// Translators: %1$s is the plugin name.
+			$message = sprintf( esc_html__( 'Error installing %1$s.', 'classicpress-directory-integration' ), $plugin_name );
+			$this->add_notice( $message, true );
+		} else {
+			// Translators: %1$s is the plugin name.
+			$message = sprintf( esc_html__( '%1$s installed.', 'classicpress-directory-integration' ), $plugin_name );
+			$this->add_notice( $message, false );
+		}
+
+		$sendback = remove_query_arg( array( 'action', 'slug', '_cpdi' ), wp_get_referer() );
+		wp_safe_redirect( $sendback );
+		exit;
 	}
 }
