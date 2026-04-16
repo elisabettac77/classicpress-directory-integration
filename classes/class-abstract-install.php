@@ -10,18 +10,20 @@ abstract class Abstract_Install {
 	protected $page           = null;
 	protected $type           = ''; // Set by child class ('plugins' or 'themes')
 
-	public function __construct() {
+		public function __construct() {
+		// Hook late enough to ensure parent menus exist
 		if ( is_multisite() ) {
 			add_action( 'network_admin_menu', array( $this, 'create_menu' ), 100 );
-			add_action( 'network_admin_menu', array( $this, 'rename_menu' ) );
+			add_action( 'network_admin_menu', array( $this, 'rename_menu' ), 101 );
 		} else {
 			add_action( 'admin_menu', array( $this, 'create_menu' ), 100 );
-			add_action( 'admin_menu', array( $this, 'rename_menu' ) );
+			add_action( 'admin_menu', array( $this, 'rename_menu' ), 101 );
 		}
+		
 		add_action( 'admin_enqueue_scripts', array( $this, 'styles' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'scripts' ) );
 	}
-
+	
 	// --------------------------------------------------------
 	// Abstract methods to be implemented by child classes
 	// --------------------------------------------------------
