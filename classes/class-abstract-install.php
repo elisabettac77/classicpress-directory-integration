@@ -68,40 +68,98 @@ abstract class Abstract_Install {
 		}
 	}
 
-	// Deduplicated API request. Note the bugfix for the 'themes' array check.
-	public static function do_directory_request( $args = array(), $type = 'plugins' ) {
-		$result['success'] = false;
-		if ( ! in_array( $type, array( 'plugins', 'themes' ) ) ) {
+		// Notice: $type no longer defaults to 'plugins'. The caller must specify.
+	public static function do_directory_request( $args = array(), $type ) {
+		$result = array(
+			'success'  => false,
+			'response' => array(),
+		);
+
+		// Strict validation to ensure only plugins or themes are requested
+		if ( ! in_array( $type, array( 'plugins', 'themes' ), true ) ) {
 			$result['error'] = $type . ' is not a supported type';
 			return $result;
 		}
+
 		$args     = self::sanitize_args( $args );
 		$endpoint = \CLASSICPRESS_DIRECTORY_INTEGRATION_URL . $type;
 		$endpoint = add_query_arg( $args, $endpoint );
-		// ... existing API parsing logic ...
+
+		$response = wp_remote_get(
+			$endpoint,
+			array(
+				'user-agent' => classicpress_user_agent( true ),
+				'timeout'    => 20,
+			)
+		);
+
+		if ( is_wp_error( $response ) ) {
+			$result['error'] = $response->get_error_message();
+			return $result;
+		}
+
+		if ( wp_remote_retrieve_response_code( $response ) !== 200 ) {
+			$result['error'] = 'Unexpected response code: ' . wp_remote_retrieve_response_code( $response );
+			return $result;
+		}
+
+		$body = wp_remote_retrieve_body( $response );
+		$data = json_decode( $body, true );
+
+		if ( ! is_array( $data ) ) {
+			$result['error'] = 'Invalid API response.';
+			return $result;
+		}
+
+		$result['success']  = true;
+		$result['response'] = $data;
+
 		return $result;
 	}
 
-	public static function sanitize_args( $args ) {
-		// ... existing sanitize logic, plus new taxonomy fields ...
+		public static function sanitize_args( $args ) {
+		$sanitized_args = array();
+
+		if ( ! is_array( $args ) ) {
+			return $sanitized_args;
+		}
+
 		foreach ( $args as $key => $value ) {
-			$sanitized = false;
-			switch ( $key ) {
+			// Ensure the key itself is safe
+			$safe_key = preg_replace( '/[^A-Za-z0-9_]/', '', $key );
+			if ( empty( $safe_key ) ) {
+				continue;
+			}
+
+			switch ( $safe_key ) {
+				// Integers
 				case 'per_page':
 				case 'page':
-					$args[ $key ] = (int) $value;
-					$sanitized    = true;
+					$sanitized_args[ $safe_key ] = (int) $value;
 					break;
-				case 'category': // <-- New for taxonomy filter
-				case 'tag':      // <-- New for taxonomy filter
+
+				// Alphanumeric strings with dashes and commas (for comma-separated slugs/tags)
+				case 'category':
+				case 'tag':
 				case 'byslug':
-					$args[ $key ] = preg_replace( '[^A-Za-z0-9\-_]', '', $value );
-					$sanitized    = true;
+				case '_fields':
+					$sanitized_args[ $safe_key ] = preg_replace( '/[^A-Za-z0-9,_-]/', '', (string) $value );
 					break;
-				// ... rest of sanitize logic
+
+				// Standard text strings (like search queries)
+				case 'search':
+				case 's':
+					$sanitized_args[ $safe_key ] = sanitize_text_field( (string) $value );
+					break;
+
+				// Fallback for any other unexpected but safe keys
+				default:
+					$sanitized_args[ $safe_key ] = sanitize_text_field( (string) $value );
+					break;
 			}
 		}
-		return $args;
+
+		return $sanitized_args;
 	}
 
 		public function render_menu() {
