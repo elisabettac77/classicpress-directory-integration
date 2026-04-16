@@ -57,6 +57,9 @@ require_once 'includes/functions.php';
 // Load Helpers trait.
 require_once 'classes/trait-helpers.php';
 
+// --- NEW: Load Abstract Update Base Class ---
+require_once 'classes/class-abstract-update.php';
+
 // Load Plugin Update functionality class.
 require_once 'classes/class-plugin-update.php';
 $plugin_update = new PluginUpdate();
@@ -80,6 +83,13 @@ if ( defined( 'WP_CLI' ) && WP_CLI ) {
 if ( ! is_admin() ) {
 	return;
 }
+
+// --- NEW: Load Abstract Install Base Class ---
+require_once 'classes/class-abstract-install.php';
+
+// --- NEW: Load Extracted Upgrader Skins ---
+require_once 'classes/class-plugin-install-skin.php';
+require_once 'classes/class-theme-install-skin.php';
 
 // Load Plugin Install functionality class.
 require_once 'classes/class-plugin-install.php';
