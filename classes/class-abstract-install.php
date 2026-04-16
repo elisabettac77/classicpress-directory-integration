@@ -68,12 +68,16 @@ abstract class Abstract_Install {
 		}
 	}
 
-		// Notice: $type no longer defaults to 'plugins'. The caller must specify.
-	public static function do_directory_request( $args = array(), $type ) {
+			// Notice: Both parameters are now required to comply with PHP 8+ strict standards.
+	public static function do_directory_request( $args, $type ) {
 		$result = array(
 			'success'  => false,
 			'response' => array(),
 		);
+
+		if ( ! is_array( $args ) ) {
+			$args = array();
+		}
 
 		// Strict validation to ensure only plugins or themes are requested
 		if ( ! in_array( $type, array( 'plugins', 'themes' ), true ) ) {
