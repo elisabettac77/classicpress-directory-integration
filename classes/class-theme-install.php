@@ -62,8 +62,39 @@ class ThemeInstall extends Abstract_Install {
 		return $this->local_cp_items;
 	}
 
+		// Deal with activation requests
 	public function activate_action() {
-		// ... theme activation logic using switch_theme()
+
+		// Load local themes information
+		$local_cp_themes = $this->get_local_cp_items();
+
+		// Security checks
+		if ( ! isset( $_GET['action'] ) ) { return; }
+		if ( $_GET['action'] !== 'activate' ) { return; }
+		if ( ! check_admin_referer( 'activate', '_cpdi' ) ) { return; }
+		if ( ! current_user_can( 'switch_themes' ) ) { return; }
+		if ( ! isset( $_REQUEST['slug'] ) ) { return; }
+
+		// Check if theme slug is proper
+		$slug = sanitize_key( wp_unslash( $_REQUEST['slug'] ) );
+		if ( ! array_key_exists( $slug, $local_cp_themes ) ) { return; }
+
+		// Activate Theme
+		$result = switch_theme( $local_cp_themes[ $slug ]['WPSlug'] );
+
+		if ( is_wp_error( $result ) ) {
+			// Translators: %1$s is the theme name.
+			$message = sprintf( esc_html__( 'Error activating %1$s.', 'classicpress-directory-integration' ), $local_cp_themes[ $slug ]['Name'] );
+			$this->add_notice( $message, true );
+		} else {
+			// Translators: %1$s is the theme name.
+			$message = sprintf( esc_html__( '%1$s activated.', 'classicpress-directory-integration' ), $local_cp_themes[ $slug ]['Name'] );
+			$this->add_notice( $message, false );
+		}
+
+		$sendback = remove_query_arg( array( 'action', 'slug', '_cpdi' ), wp_get_referer() );
+		wp_safe_redirect( $sendback );
+		exit;
 	}
 
 	public function install_action() {
