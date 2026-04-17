@@ -220,115 +220,101 @@
    Slide-Out Drawer Modal (Native Dialog Reset)
    ========================================================================== */
 .cp-modal-dialog {
-	margin: 0 0 0 auto; /* Push to the right */
-	padding: 0;
-	border: none;
-	position: fixed;
-	top: 0;
-	right: 0;
-	bottom: 0;
-	width: 100%;
-	max-width: 550px; /* Takes ~40% on desktop, full width on mobile */
-	height: 100vh;
-	max-height: 100vh;
-	background: #fff;
-	box-shadow: -5px 0 30px rgba(0,0,0,0.15);
-	overflow: hidden;
-}
-
-/* Animations */
-.cp-modal-dialog[open] {
-	animation: cpSlideInRight 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-	display: flex !important; /* Override UA stylesheet */
-	flex-direction: column;
-}
-
-.cp-modal-dialog.cp-is-closing {
-	animation: cpSlideOutRight 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-
-/* Backdrop animations */
-.cp-modal-dialog::backdrop {
-	background: rgba(0, 0, 0, 0.6);
-	backdrop-filter: blur(2px);
-}
-.cp-modal-dialog[open]::backdrop {
-	animation: cpFadeIn 0.35s ease forwards;
-}
-.cp-modal-dialog.cp-is-closing::backdrop {
-	animation: cpFadeOut 0.3s ease forwards;
-}
-
-@keyframes cpSlideInRight {
-	from { transform: translateX(100%); }
-	to { transform: translateX(0); }
-}
-@keyframes cpSlideOutRight {
-	from { transform: translateX(0); }
-	to { transform: translateX(100%); }
-}
-@keyframes cpFadeIn {
-	from { opacity: 0; }
-	to { opacity: 1; }
-}
-@keyframes cpFadeOut {
-	from { opacity: 1; }
-	to { opacity: 0; }
+	margin: 0 0 0 auto !important; /* Force to right side */
+	padding: 0 !important;
+	border: none !important;
+	position: fixed !important;
+	top: 0 !important;
+	right: 0 !important;
+	bottom: 0 !important;
+	width: 100% !important;
+	max-width: 600px !important;
+	height: 100vh !important;
+	max-height: 100vh !important;
+	background: #fff !important;
+	box-shadow: -5px 0 30px rgba(0,0,0,0.15) !important;
+	overflow: hidden !important;
+	z-index: 100000 !important; /* Force above everything including WP admin bar */
 }
 
 /* Inner Layout using Flexbox */
 .cp-modal-content {
 	display: flex;
 	flex-direction: column;
-	height: 100%;
+	height: 100vh;
 	width: 100%;
+	position: absolute;
+	top: 0;
+	left: 0;
+	bottom: 0;
+	right: 0;
 }
 
 .cp-modal-visual {
-	height: 220px;
-	background-size: cover;
+	width: 100%;
+	height: 250px;
 	background-position: center;
-	background-color: #1d2327; /* Dark fallback */
+	background-repeat: no-repeat;
 	flex-shrink: 0;
+	position: relative;
+	border-bottom: 1px solid #dcdcde;
 }
 
 .cp-modal-body {
 	flex-grow: 1;
 	overflow-y: auto;
-	padding: 30px;
+	padding: 30px 40px;
+	background: #fff;
 }
 
 .cp-modal-title {
-	margin: 0 0 5px;
-	font-size: 1.5em;
-	color: #1d2327;
+	margin: 0 0 10px !important;
+	font-size: 2em !important;
+	color: #1d2327 !important;
+	font-weight: 600 !important;
+	line-height: 1.2 !important;
 }
 
 .cp-modal-version {
-	font-size: 0.55em;
+	font-size: 0.4em;
 	background: #f0f0f1;
-	padding: 3px 8px;
+	padding: 4px 8px;
 	border-radius: 12px;
 	vertical-align: middle;
 	color: #50575e;
 	font-weight: 600;
+	display: inline-block;
+	margin-left: 8px;
 }
 
 .cp-modal-author {
-	margin: 0 0 20px;
-	color: #646970;
+	margin: 0 0 25px !important;
+	color: #646970 !important;
+	font-size: 15px !important;
+}
+
+.cp-modal-description {
+	color: #3c434a;
 	font-size: 14px;
+	line-height: 1.6;
 }
 
 .cp-modal-description h1,
 .cp-modal-description h2,
-.cp-modal-description h3 {
-	margin-top: 1.5em;
+.cp-modal-description h3,
+.cp-modal-description h4 {
+	margin-top: 1.8em;
+	margin-bottom: 0.8em;
+	color: #1d2327;
+}
+
+.cp-modal-description p {
+	margin-bottom: 1em;
 }
 
 .cp-modal-footer {
 	flex-shrink: 0;
-	padding: 15px 30px;
+	padding: 20px 40px;
 	background: #f6f7f7;
 	border-top: 1px solid #dcdcde;
 	display: flex;
@@ -338,22 +324,32 @@
 
 /* Floating Close Button at Top Right */
 .cp-modal-close {
-	position: absolute;
-	top: 15px;
-	right: 15px;
-	width: 36px;
-	height: 36px;
-	border-radius: 50%;
-	background: rgba(255, 255, 255, 0.9);
-	border: 1px solid rgba(0, 0, 0, 0.1);
-	box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	cursor: pointer;
-	z-index: 10; /* Float above the banner */
-	transition: all 0.2s;
-	color: #3c434a;
+	position: absolute !important;
+	top: 20px !important;
+	right: 20px !important;
+	width: 40px !important;
+	height: 40px !important;
+	border-radius: 50% !important;
+	background: #fff !important;
+	border: 1px solid rgba(0, 0, 0, 0.1) !important;
+	box-shadow: 0 2px 10px rgba(0,0,0,0.15) !important;
+	display: flex !important;
+	align-items: center !important;
+	justify-content: center !important;
+	cursor: pointer !important;
+	z-index: 100001 !important; /* Make sure it's clickable above banner */
+	color: #3c434a !important;
+}
+
+.cp-modal-close .dashicons {
+	font-size: 24px;
+	width: 24px;
+	height: 24px;
+}
+
+.cp-modal-close:hover {
+	color: #d63638 !important;
+	transform: scale(1.05) !important;
 }
 
 .cp-modal-close:hover {
