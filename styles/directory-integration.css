@@ -357,3 +357,63 @@
 	color: #d63638; /* Red on hover to indicate close */
 	transform: scale(1.05);
 }
+
+/* ==========================================================================
+   Prevent dialog-level scroll and WP heading offset interference
+   ========================================================================== */
+
+/* The dialog itself must NEVER scroll — only the body panel inside it */
+.cp-modal-dialog {
+	overflow: hidden !important;
+	overscroll-behavior: contain;
+}
+
+/* WP admin injects scroll-margin-top on headings for the sticky toolbar.
+   Reset it inside our drawer so it doesn't push content down on open. */
+.cp-modal-dialog *,
+.cp-modal-dialog h1,
+.cp-modal-dialog h2,
+.cp-modal-dialog h3,
+.cp-modal-dialog h4,
+.cp-modal-dialog h5,
+.cp-modal-dialog h6 {
+	scroll-margin-top: 0 !important;
+	scroll-padding-top: 0 !important;
+}
+
+/* Force the inner layout to be a strict flex column filling the dialog */
+.cp-modal-content {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	overflow: hidden; /* Children manage their own overflow */
+}
+
+/* Banner: fixed height, never shrinks */
+.cp-modal-visual {
+	flex: 0 0 250px;
+	background-size: cover;
+	background-position: center;
+	background-repeat: no-repeat;
+}
+
+/* Body: takes all remaining space and scrolls only when content overflows */
+.cp-modal-body {
+	flex: 1 1 auto;
+	overflow-y: auto;
+	overflow-x: hidden;
+	padding: 30px 40px;
+	/* Reset any initial scroll position */
+	scroll-behavior: auto;
+}
+
+/* Footer: fixed height at the bottom, never scrolls */
+.cp-modal-footer {
+	flex: 0 0 auto;
+	padding: 20px 40px;
+	background: #f6f7f7;
+	border-top: 1px solid #dcdcde;
+	display: flex;
+	justify-content: flex-end;
+	align-items: center;
+}
