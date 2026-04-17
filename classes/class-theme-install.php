@@ -1,7 +1,7 @@
 <?php
-namespace ClassicPress\Directory;
+namespace ClassicPress;
 
-class ThemeInstall extends Abstract_Install {
+class ThemeInstall extends AbstractInstall {
 
 	public function __construct() {
 		$this->type = 'themes';
@@ -9,111 +9,68 @@ class ThemeInstall extends Abstract_Install {
 	}
 
 	public function create_menu() {
-		if ( ! current_user_can( 'install_themes' ) ) {
-			return;
-		}
-
-		$this->page = add_submenu_page(
-			'themes.php',
-			esc_html__( 'ClassicPress Themes', 'classicpress-directory-integration' ),
-			esc_html__( 'Install CP Themes', 'classicpress-directory-integration' ),
-			'install_themes',
-			'classicpress-directory-integration-theme-install',
-			array( $this, 'render_menu' ),
-			2
-		);
-
+		if ( ! current_user_can( 'install_themes' ) ) return;
+		$this->page = add_submenu_page( 'themes.php', esc_html__( 'ClassicPress Themes', 'classicpress-directory-integration' ), esc_html__( 'Install CP Themes', 'classicpress-directory-integration' ), 'install_themes', 'classicpress-directory-integration-theme-install', array( $this, 'render_menu' ), 2 );
 		add_action( 'load-' . $this->page, array( $this, 'activate_action' ) );
 		add_action( 'load-' . $this->page, array( $this, 'install_action' ) );
 	}
 
 	public function rename_menu() {
-		if ( ! current_user_can( 'install_themes' ) ) {
-			return;
-		}
-
+		if ( ! current_user_can( 'install_themes' ) ) return;
 		global $submenu;
 		if ( isset( $submenu['themes.php'] ) ) {
 			foreach ( $submenu['themes.php'] as $key => $value ) {
-				if ( $value[2] !== 'theme-install.php' ) {
-					continue;
-				}
+				if ( $value[2] !== 'theme-install.php' ) continue;
 				$submenu['themes.php'][ $key ][0] = esc_html__( 'Install WP Themes', 'classicpress-directory-integration' ); // phpcs:ignore
 			}
 		}
 	}
 
 	protected function get_local_cp_items() {
-		if ( $this->local_cp_items !== false ) { return $this->local_cp_items; }
-		
+		if ( $this->local_cp_items !== false ) return $this->local_cp_items;
 		$all_themes = wp_get_themes();
 		$cp_themes  = array();
 		foreach ( $all_themes as $slug => $theme ) {
 			$cp_themes[ $slug ] = array(
-				'WPSlug'   => $slug,
+				'WP_Slug'  => $slug,
 				'Name'     => $theme->get( 'Name' ),
 				'Version'  => $theme->get( 'Version' ),
 				'ThemeURI' => $theme->get( 'ThemeURI' ),
-				'Active'   => get_template() === $slug || get_stylesheet() === $slug,
+				'Active'   => ( get_template() === $slug || get_stylesheet() === $slug ),
 			);
 		}
-		
 		$this->local_cp_items = $cp_themes;
 		return $this->local_cp_items;
 	}
 
-		// Deal with activation requests
 	public function activate_action() {
+		if ( ! isset( $_GET['action'] ) || $_GET['action'] !== 'activate' ) return;
+		if ( ! check_admin_referer( 'activate', 'cpdi' ) || ! current_user_can( 'switch_themes' ) ) return;
+		if ( ! isset( $_REQUEST['slug'] ) ) return;
 
-		// Load local themes information
 		$local_cp_themes = $this->get_local_cp_items();
-
-		// Security checks
-		if ( ! isset( $_GET['action'] ) ) { return; }
-		if ( $_GET['action'] !== 'activate' ) { return; }
-		if ( ! check_admin_referer( 'activate', '_cpdi' ) ) { return; }
-		if ( ! current_user_can( 'switch_themes' ) ) { return; }
-		if ( ! isset( $_REQUEST['slug'] ) ) { return; }
-
-		// Check if theme slug is proper
 		$slug = sanitize_key( wp_unslash( $_REQUEST['slug'] ) );
-		if ( ! array_key_exists( $slug, $local_cp_themes ) ) { return; }
 
-		// Activate Theme
-		$result = switch_theme( $local_cp_themes[ $slug ]['WPSlug'] );
-
-		if ( is_wp_error( $result ) ) {
-			// Translators: %1$s is the theme name.
-			$message = sprintf( esc_html__( 'Error activating %1$s.', 'classicpress-directory-integration' ), $local_cp_themes[ $slug ]['Name'] );
-			$this->add_notice( $message, true );
-		} else {
-			// Translators: %1$s is the theme name.
-			$message = sprintf( esc_html__( '%1$s activated.', 'classicpress-directory-integration' ), $local_cp_themes[ $slug ]['Name'] );
-			$this->add_notice( $message, false );
+		if ( array_key_exists( $slug, $local_cp_themes ) ) {
+			switch_theme( $local_cp_themes[ $slug ]['WP_Slug'] );
+			$this->add_notice( sprintf( esc_html__( '%1$s activated.', 'classicpress-directory-integration' ), $local_cp_themes[ $slug ]['Name'] ), false );
 		}
 
-		$sendback = remove_query_arg( array( 'action', 'slug', '_cpdi' ), wp_get_referer() );
-		wp_safe_redirect( $sendback );
+		wp_safe_redirect( $this->get_redirect_url() );
 		exit;
 	}
 
 	public function install_action() {
-		// Security checks...
-		if ( ! isset( $_GET['action'] ) || $_GET['action'] !== 'install' ) { return; }
-		if ( ! check_admin_referer( 'install', '_cpdi' ) ) { return; }
-		if ( ! current_user_can( 'install_themes' ) ) { return; }
-		if ( ! isset( $_REQUEST['slug'] ) ) { return; }
+		if ( ! isset( $_GET['action'] ) || $_GET['action'] !== 'install' ) return;
+		if ( ! check_admin_referer( 'install', 'cpdi' ) || ! current_user_can( 'install_themes' ) ) return;
+		if ( ! isset( $_REQUEST['slug'] ) ) return;
 
 		$slug = sanitize_key( wp_unslash( $_REQUEST['slug'] ) );
-
-		// 1. Get Theme data from the API
-		// Fix: explicitly pass the required $args and $type parameters to do_directory_request
-		$args     = array( 'byslug' => $slug, '_fields' => 'meta,title' );
-		$response = $this::do_directory_request( $args, 'themes' );
+		$response = self::do_directory_request( array( 'byslug' => $slug, '_fields' => 'meta,title' ), 'themes' );
 
 		if ( ! $response['success'] || ! isset( $response['response'][0]['meta']['download_link'] ) ) {
 			$this->add_notice( esc_html__( 'API error for theme.', 'classicpress-directory-integration' ), true );
-			wp_safe_redirect( remove_query_arg( array( 'action', 'slug', '_cpdi' ), wp_get_referer() ) );
+			wp_safe_redirect( $this->get_redirect_url() );
 			exit;
 		}
 
@@ -121,40 +78,29 @@ class ThemeInstall extends Abstract_Install {
 		$installation_url = $theme_data['meta']['download_link'];
 		$theme_name       = $theme_data['title']['rendered'];
 
-		// 2. CHECK API DATA FOR CHILD THEME DEPENDENCY
-		// CHANGED: parent_slug to parent_theme
 		if ( ! empty( $theme_data['meta']['parent_theme'] ) ) {
 			$parent_slug = sanitize_key( $theme_data['meta']['parent_theme'] );
-			
-			// 3. Check local filesystem if parent is missing
 			$local_themes = wp_get_themes();
-			
+
 			if ( ! array_key_exists( $parent_slug, $local_themes ) ) {
-				// Parent is missing. Query API for Parent.
-				$parent_args     = array( 'byslug' => $parent_slug, '_fields' => 'meta,title' );
-				$parent_response = $this::do_directory_request( $parent_args, 'themes' );
-				
+				$parent_response = self::do_directory_request( array( 'byslug' => $parent_slug, '_fields' => 'meta,title' ), 'themes' );
 				if ( $parent_response['success'] && isset( $parent_response['response'][0]['meta']['download_link'] ) ) {
-					// Install Parent silently
-					$parent_skin     = new \Automatic_Upgrader_Skin(); // Silent skin so it doesn't interrupt flow
+					$parent_skin     = new \Automatic_Upgrader_Skin(); // Silent skin
 					$parent_upgrader = new \Theme_Upgrader( $parent_skin );
 					$parent_install  = $parent_upgrader->install( $parent_response['response'][0]['meta']['download_link'] );
-					
 					if ( $parent_install !== true ) {
-						// Translators: %s is the parent theme name.
 						$this->add_notice( sprintf( esc_html__( 'Required parent theme %s failed to install.', 'classicpress-directory-integration' ), $parent_response['response'][0]['title']['rendered'] ), true );
-						wp_safe_redirect( remove_query_arg( array( 'action', 'slug', '_cpdi' ), wp_get_referer() ) );
+						wp_safe_redirect( $this->get_redirect_url() );
 						exit;
 					}
 				} else {
 					$this->add_notice( esc_html__( 'API error: Could not find required parent theme in the directory.', 'classicpress-directory-integration' ), true );
-					wp_safe_redirect( remove_query_arg( array( 'action', 'slug', '_cpdi' ), wp_get_referer() ) );
+					wp_safe_redirect( $this->get_redirect_url() );
 					exit;
 				}
 			}
 		}
 
-		// 4. Install the actual requested theme
 		$skin     = new ThemeInstallSkin( array( 'type' => 'theme' ) );
 		$upgrader = new \Theme_Upgrader( $skin );
 		$install  = $upgrader->install( $installation_url );
@@ -165,7 +111,7 @@ class ThemeInstall extends Abstract_Install {
 			$this->add_notice( sprintf( esc_html__( '%s installed successfully.', 'classicpress-directory-integration' ), $theme_name ), false );
 		}
 
-		wp_safe_redirect( remove_query_arg( array( 'action', 'slug', '_cpdi' ), wp_get_referer() ) );
+		wp_safe_redirect( $this->get_redirect_url() );
 		exit;
 	}
 }
