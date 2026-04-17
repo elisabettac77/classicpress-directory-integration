@@ -1,120 +1,79 @@
 /**
- * Functionality for the ClassicPress Directory Integration screens.
+ * Functionality for the ClassicPress directory integration screens.
  */
-document.addEventListener( 'DOMContentLoaded', function () {
-	// 1. Identify the Dialog
-	const dialog = document.getElementById( 'cp-details-modal' );
-	if ( ! dialog ) return;
+document.addEventListener('DOMContentLoaded', function () {
+	// Find all our new Details buttons
+	var openers = document.querySelectorAll('.cp-details-button');
+	
+	// Ensure we have a dialog element to work with
+	var dialog = document.getElementById('cp-details-modal');
+	var dialogContent = dialog ? dialog.querySelector('.cp-modal-content') : null;
+	var closeButton = dialog ? dialog.querySelector('.cp-modal-close') : null;
 
-	// Elements inside the modal where we will inject content
-	const modalContent = dialog.querySelector( '.cp-modal-content' );
-	const closeBtn     = dialog.querySelector( '.cp-modal-close' );
+	if (!dialog || !dialogContent || !closeButton) {
+		return; // Failsafe in case HTML isn't present
+	}
 
-	// 2. Open Modal Logic (Delegated Event Listener)
-	// We use delegation on the body so it automatically works for cards loaded via infinite scroll later
-	document.body.addEventListener( 'click', function ( e ) {
-		const triggerBtn = e.target.closest( '.cp-details-button' );
-		
-		if ( ! triggerBtn ) return;
+	// Helper function to handle localized strings
+	var __ = wp.i18n.__;
+	var sprintf = wp.i18n.sprintf;
 
-		e.preventDefault();
+	/**
+	 * Render the content inside the modal when a button is clicked.
+	 */
+	openers.forEach(function (opener) {
+		opener.addEventListener('click', function (e) {
+			e.preventDefault();
 
-		// Parse the plugin/theme data attached to the button by PHP
-		const itemDataRaw = triggerBtn.getAttribute( 'data-item-data' );
-		if ( ! itemDataRaw ) return;
+			// Parse the JSON data attached to the button
+			var itemData = JSON.parse(this.getAttribute('data-item-data'));
 
-		let item;
-		try {
-			item = JSON.parse( itemDataRaw );
-		} catch ( err ) {
-			console.error( 'CPDI: Failed to parse item data', err );
-			return;
-		}
+			// Fallbacks
+			var title = itemData.title && itemData.title.rendered ? itemData.title.rendered : __('Details', 'classicpress-directory-integration');
+			var author = itemData.meta && itemData.meta.developer_name ? itemData.meta.developer_name : __('Unknown', 'classicpress-directory-integration');
+			var version = itemData.meta && itemData.meta.current_version ? itemData.meta.current_version : '';
+			var content = itemData.content && itemData.content.rendered ? itemData.content.rendered : __('No description provided.', 'classicpress-directory-integration');
+			
+			// Build the modal HTML inject
+			var html = '';
+			html += '<div class="cp-modal-header">';
+			html += '<h2>' + title + ' <span class="cp-version">' + version + '</span></h2>';
+			html += '<p class="cp-author">' + __('By', 'classicpress-directory-integration') + ' ' + author + '</p>';
+			html += '</div>';
+			
+			html += '<div class="cp-modal-body">';
+			html += content; // The API provides this pre-rendered
+			html += '</div>';
 
-		// Grab the action buttons container from the card so we can clone it into the modal footer
-		const card         = triggerBtn.closest( '.cp-card' );
-		const actionGroup  = card.querySelector( '.cp-card-action' );
-		const actionsClone = actionGroup ? actionGroup.innerHTML : '';
+			// Inject the HTML
+			dialogContent.innerHTML = html;
 
-		// Build the HTML for the drawer
-		// (We will style this later to look like the sliding sidebar)
-		const html = `
-			<div class="cp-drawer-header">
-				<div class="cp-drawer-header-title">
-					<h2>${ wp.i18n.escapeHTML( item.title.rendered ) }</h2>
-					<span class="cp-drawer-author">By ${ wp.i18n.escapeHTML( item.meta.developer_name || 'Unknown' ) }</span>
-				</div>
-			</div>
-
-			<div class="cp-drawer-meta-pills">
-				<span class="cp-pill cp-pill-installs">⬇ ${ item.meta.active_installations || 0 } active installs</span>
-				${ item.meta.requires_cp ? `<span class="cp-pill cp-pill-cp">CP ${ wp.i18n.escapeHTML( item.meta.requires_cp ) }+</span>` : '' }
-				${ item.meta.requires_php ? `<span class="cp-pill cp-pill-php">PHP ${ wp.i18n.escapeHTML( item.meta.requires_php ) }+</span>` : '' }
-			</div>
-
-			<div class="cp-drawer-body">
-				<div class="cp-drawer-description">
-					${ reduceHeaders( item.content.rendered || '' ) }
-				</div>
-			</div>
-
-			<div class="cp-drawer-footer">
-				${ actionsClone }
-			</div>
-		`;
-
-		// Inject the HTML into the Dialog
-		// Note: We keep the close button intact by appending to innerHTML, or just overriding a container.
-		// Since we only have the close button currently in the dialog, we'll append.
-		
-		// First, clear any previous content except the close button
-		const existingDynamicContent = dialog.querySelector( '.cp-drawer-container' );
-		if ( existingDynamicContent ) {
-			existingDynamicContent.remove();
-		}
-
-		// Inject new content
-		const container = document.createElement( 'div' );
-		container.className = 'cp-drawer-container';
-		container.innerHTML = html;
-		modalContent.appendChild( container );
-
-		// Show the native dialog
-		dialog.showModal();
-
-		// Set focus to the close button for accessibility
-		if ( closeBtn ) {
-			closeBtn.focus();
-		}
+			// Show the modal natively
+			dialog.showModal();
+			
+			// Move focus to close button for accessibility
+			closeButton.focus();
+		});
 	});
 
-	// 3. Close Modal Logic
-	function closeDialog() {
+	/**
+	 * Close the modal via the close button
+	 */
+	closeButton.addEventListener('click', function () {
 		dialog.close();
-		// Optional: Return focus to the grid if needed, though browsers handle this decently now
-	}
-
-	// Close button click
-	if ( closeBtn ) {
-		closeBtn.addEventListener( 'click', closeDialog );
-	}
-
-	// Click on the backdrop (the area outside the dialog)
-	dialog.addEventListener( 'click', function ( e ) {
-		const rect = dialog.getBoundingClientRect();
-		// If the click is outside the bounds of the dialog itself, close it
-		const isInDialog = ( rect.top <= e.clientY && e.clientY <= rect.top + rect.height && rect.left <= e.clientX && e.clientX <= rect.left + rect.width );
-		
-		if ( ! isInDialog ) {
-			closeDialog();
-		}
+		dialogContent.innerHTML = ''; // Clear out data
 	});
 
-	// Escape key is handled natively by <dialog>, so we don't strictly need a keydown listener for it!
-
-	// 4. Helper to demote heading tags (H1 -> H3, H2 -> H3) to prevent breaking accessibility hierarchy
-	function reduceHeaders( content ) {
-		return content.replace( /<(\/?)h[12]/gi, '<$1h3' );
-	}
+	/**
+	 * Close the modal by clicking outside of it (on the backdrop)
+	 */
+	dialog.addEventListener('click', function(e) {
+		var rect = dialog.getBoundingClientRect();
+		var isInDialog = (rect.top <= e.clientY && e.clientY <= rect.top + rect.height && rect.left <= e.clientX && e.clientX <= rect.left + rect.width);
+		if (!isInDialog) {
+			dialog.close();
+			dialogContent.innerHTML = '';
+		}
+	});
 
 });
