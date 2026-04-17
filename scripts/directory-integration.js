@@ -67,6 +67,12 @@ document.addEventListener('DOMContentLoaded', function () {
 			html += '</div>';
 
 			dialogContent.innerHTML = html;
+
+			// Reset scroll position to top before opening
+			var modalBody = dialogContent.querySelector('.cp-modal-body');
+			if (modalBody) {
+				modalBody.scrollTop = 0;
+			}
 			
 			// Show the modal natively
 			dialog.showModal();
