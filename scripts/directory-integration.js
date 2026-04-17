@@ -23,13 +23,29 @@ document.addEventListener('DOMContentLoaded', function () {
 			// Extract the action buttons from the grid card to reuse in the modal footer
 			var actionsHtml = card.querySelector('.cp-card-action').innerHTML;
 			
-			// Figure out the visual image (Banner for plugins, Screenshot for themes)
+						// Figure out the visual image (Banner for plugins, Screenshot for themes)
 			var visualUrl = '';
 			if (itemData.meta && itemData.meta.screenshot_url) {
 				visualUrl = itemData.meta.screenshot_url;
 			} else if (itemData.meta && itemData.meta.banner_url) {
 				visualUrl = itemData.meta.banner_url;
 			}
+
+			// Generate a beautiful SVG fallback if no image exists
+			var visualStyles = '';
+			if (visualUrl) {
+				visualStyles = 'background-image: url(\'' + visualUrl + '\'); background-size: cover;';
+			} else {
+				// Create an SVG with the first letter of the item name
+				var firstLetter = title.charAt(0).toUpperCase();
+				var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 250" preserveAspectRatio="none"><rect width="800" height="250" fill="#2271b1"/><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" font-family="system-ui, sans-serif" font-size="120" font-weight="bold" fill="rgba(255,255,255,0.2)">' + firstLetter + '</text><text x="50%" y="75%" dominant-baseline="middle" text-anchor="middle" font-family="system-ui, sans-serif" font-size="24" fill="rgba(255,255,255,0.4)">' + title + '</text></svg>';
+				visualStyles = 'background-image: url(\'data:image/svg+xml;utf8,' + encodeURIComponent(svg) + '\'); background-size: cover;';
+			}
+			
+			var html = '';
+			
+			// Top Visual Area
+			html += '<div class="cp-modal-visual" style="' + visualStyles + '"></div>';
 
 			// Extract textual data with fallbacks
 			var title = itemData.title && itemData.title.rendered ? itemData.title.rendered : __('Details', 'classicpress-directory-integration');
