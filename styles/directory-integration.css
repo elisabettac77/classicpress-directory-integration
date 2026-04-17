@@ -1,329 +1,179 @@
-.plugin-install-tab h1 {
-	margin-bottom: 1em;
+/* ==========================================================================
+   ClassicPress Directory Integration Grid
+   ========================================================================== */
+.cp-directory-wrap {
+	max-width: 1200px;
+	margin-top: 20px;
 }
-
-.cp-plugin-search-box {
-	float: right;
-	margin: -5em 0 0;
+.cp-directory-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 20px;
 }
-
-.plugin-install-tab .wp-header-end {
-	clear: both;
+.cp-directory-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+	gap: 20px;
+	align-items: start;
 }
-
-.wp-filter-search {
-	width: 280px;
+.cp-card {
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	box-shadow: 0 1px 1px rgba(0,0,0,0.04);
 }
-
-.cp-plugin-cards {
-	margin-bottom: 3em;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    grid-gap: 3em;
+.cp-card-visual {
+	position: relative;
+	height: 150px;
+	background-color: #f0f0f1;
+	border-bottom: 1px solid #dcdcde;
 }
-
-.cp-plugin-card {
-    background-color: #fff;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    border: 1px solid #ddd;
-    gap: 1em;
+.cp-shield-badge {
+	position: absolute;
+	top: 10px;
+	right: 10px;
+	background: #fff;
+	border-radius: 50%;
+	width: 28px;
+	height: 28px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+	color: #2271b1;
+	z-index: 2;
 }
-
-.cp-plugin-card .cp-plugin-description {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+.cp-card-banner, .cp-card-screenshot {
+	width: 100%;
+	height: 100%;
+	background-size: cover;
+	background-position: center;
 }
-
-.cp-plugin-card .cp-plugin-description p {
-    margin: 0;
+.cp-card-description {
+	padding: 15px;
+	font-size: 13px;
+	color: #3c434a;
 }
-
-.cp-plugin-card .cp-plugin-card-header,
-.cp-plugin-card .cp-plugin-card-body {
-    padding: 0 1em;
+.cp-card-bottom-bar {
+	display: flex;
+	flex-wrap: wrap;
+	padding: 15px;
+	background: #f6f7f7;
+	border-top: 1px solid #dcdcde;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
 }
-
-.cp-plugin-card .cp-plugin-header h3 {
-    display: -webkit-box;
-    -webkit-line-clamp: 1;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    margin-bottom: 0.5em;
+.cp-card-info {
+	flex: 1 1 100%;
+	margin-bottom: 10px;
 }
-
-.cp-plugin-card .cp-plugin-card-header .cp-plugin-author {
-    color: #666;
+.cp-card-title {
+	margin: 0 0 5px 0;
+	font-size: 16px;
+	line-height: 1.3;
 }
-
-.cp-plugin-card footer {
-    background-color: #fafafa;
-    border-top: 1px solid #ddd;
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    padding: 0.5em 1em;
-    align-items: center;
+.cp-card-author {
+	font-size: 12px;
+	color: #646970;
 }
-
-.cp-plugin-actions {
-    display: flex;
-    gap: 0.5em;
+.cp-card-details {
+	flex: 0 0 auto;
 }
-
-.cp-plugin-actions .button.link-txt {
-    border: 1px solid transparent;
-    box-shadow: none;
+.cp-details-button {
+	background: none;
+	border: none;
+	color: #2271b1;
+	text-decoration: underline;
+	cursor: pointer;
+	padding: 0;
+	font-size: 13px;
 }
-
-.cp-plugin-actions .button:hover,
-.cp-plugin-actions .button:focus,
-#plugin-install-from-modal.button:hover,
-#plugin-install-from-modal.button:focus {
-	color: #fff;
-	background-color: #2271b1;
-	border-color: #185281;
+.cp-card-action {
+	flex: 0 0 auto;
+	text-align: right;
 }
-
-.cp-plugin-actions .cp-plugin-installed {
-    display: inline-block;
-    text-decoration: none;
-    height: 39px;
-    margin: 0;
-    padding: 0 10px 1px;
-    border-radius: 3px;
-    white-space: nowrap;
-    box-sizing: border-box;
-    border: 1px solid #269126;
-    color: #fff;
-    background-color: #269126;
-    box-shadow: 0 1px 0 #1a651a;
-}
-
-.cp-plugins-pagination {
-    display: flex;
-    padding-left: 0;
-    list-style: none;
-    align-items: center;
-}
-
-.cp-plugins-pagination li a {
-    display: inline-block;
-    min-width: 16px;
-    border: 1px solid #ccc;
-    padding: 0.5rem;
-    background: #e5e5e5;
-    font-size: 1rem;
-    line-height: 1;
-    font-weight: 400;
-    text-align: center;
-    text-decoration: none;
-    color: #666;
-    margin-right: 5px;
-}
-
-.cp-plugins-pagination li a:hover,
-.cp-plugins-pagination li a:focus {
-    border-color: #5b9dd9;
-    color: #fff;
-    background: #00a0d2;
-    box-shadow: none;
-    outline: 0;
-}
-
-.cp-plugins-pagination li.cp-current-page a {
-    background: #f7f7f7;
-    color: #666;
-}
-
-.cp-plugins-pagination li.cp-current-page a:hover,
-.cp-plugins-pagination li.cp-current-page a:focus {
-    border-color: #ccc;
-}
-
-.cp-plugins-pagination li:not(:first-child) a {
-    margin-left: -1px;
-}
-
-#plugin-information {
-	max-width: 800px;
-	margin: auto;
-	border: 2px solid #000;
-}
-
-#plugin-information-scrollable {
-	padding: 0 1.5em;
-}
-
-#plugin-information-scrollable h2 {
-	font-size: 2em;
-}
-
-#plugin-information-scrollable h4 {
-	font-size: 1.2em;
-}
-
-#plugin-information-scrollable h5 {
-	font-size: 1.1em;
-}
-
-#plugin-information-scrollable h6 {
-	font-size: 1.05em;
-}
-
-.plugin-details-modal #dialog-close-button {
-	border-left: 2px solid #000;
-	border-bottom: 2px solid #000;
-}
-
-.plugin-details-modal #dialog-close-button:hover,
-.plugin-details-modal #dialog-close-button:focus {
-	background-color: #fafafa;
-}
-
-.vetted-plugin .dashicons,
-.vetted-theme .dashicons{
-	float: right;
-	color: #057f99;
-}
-
-.vetted-plugin,
-.vetted-theme {
-	background-color: #EBF4F7;
-}
-
-#plugin-install-from-modal {
-	float: right;
-	margin-top: -2px;
-}
-
-#plugin-information-footer .cp-plugin-installed {
-	color: #fff;
-	border: 1px solid #269126;
-	background-color: #269126;
-	cursor: unset;
-}
-
-@media (min-width: 783px) {
-    .cp-plugin-cards {
-        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-    }
-    .cp-plugin-actions .cp-plugin-installed {
-		height: unset;
-    }
+.cp-action-group {
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
 }
 
 /* ==========================================================================
-   Slide-Out Drawer Modal (Native Dialog Reset)
+   Slide-Out Drawer Modal (Bulletproof Rewrite)
    ========================================================================== */
-.cp-modal-dialog {
-	margin: 0 0 0 auto !important; /* Force to right side */
-	padding: 0 !important;
-	border: none !important;
+
+/* 1. The Dialog Shell */
+dialog#cp-details-modal {
 	position: fixed !important;
-	top: 0 !important;
-	right: 0 !important;
-	bottom: 0 !important;
+	inset: 0 0 0 auto !important; /* Lock to right side */
+	margin: 0 !important;
+	padding: 0 !important;
 	width: 100% !important;
 	max-width: 600px !important;
-	height: 100vh !important;
-	max-height: 100vh !important;
+	height: 100dvh !important;
+	max-height: 100dvh !important;
+	border: none !important;
 	background: #fff !important;
 	box-shadow: -5px 0 30px rgba(0,0,0,0.15) !important;
-	overflow: hidden !important;
-	z-index: 100000 !important; /* Force above everything including WP admin bar */
-}
-
-/* Inner Layout using Flexbox */
-.cp-modal-content {
-	display: flex;
-	flex-direction: column;
-	height: 100vh;
-	width: 100%;
-	position: absolute;
-	top: 0;
-	left: 0;
-	bottom: 0;
-	right: 0;
-}
-
-.cp-modal-visual {
-	width: 100%;
-	height: 250px;
-	background-position: center;
-	background-repeat: no-repeat;
-	flex-shrink: 0;
-	position: relative;
-	border-bottom: 1px solid #dcdcde;
-}
-
-.cp-modal-body {
-	flex-grow: 1;
-	overflow-y: auto;
-	padding: 30px 40px;
-	background: #fff;
-}
-
-.cp-modal-title {
-	margin: 0 0 10px !important;
-	font-size: 2em !important;
-	color: #1d2327 !important;
-	font-weight: 600 !important;
-	line-height: 1.2 !important;
-}
-
-.cp-modal-version {
-	font-size: 0.4em;
-	background: #f0f0f1;
-	padding: 4px 8px;
-	border-radius: 12px;
-	vertical-align: middle;
-	color: #50575e;
-	font-weight: 600;
-	display: inline-block;
-	margin-left: 8px;
-}
-
-.cp-modal-author {
-	margin: 0 0 25px !important;
-	color: #646970 !important;
-	font-size: 15px !important;
-}
-
-.cp-modal-description {
+	overflow: hidden !important; 
+	z-index: 100000 !important;
 	color: #3c434a;
-	font-size: 14px;
-	line-height: 1.6;
 }
 
-.cp-modal-description h1,
-.cp-modal-description h2,
-.cp-modal-description h3,
-.cp-modal-description h4 {
-	margin-top: 1.8em;
-	margin-bottom: 0.8em;
-	color: #1d2327;
+dialog#cp-details-modal::backdrop {
+	background: rgba(0, 0, 0, 0.6);
+	backdrop-filter: blur(2px);
 }
 
-.cp-modal-description p {
-	margin-bottom: 1em;
+/* 2. Absolute Flex Containment */
+.cp-modal-content {
+	display: flex !important;
+	flex-direction: column !important;
+	height: 100% !important;
+	width: 100% !important;
+	overflow: hidden !important; /* Contains the scrollable body strictly */
 }
 
+/* 3. Top visual - Never shrinks, static height */
+.cp-modal-visual {
+	flex: 0 0 250px !important;
+	width: 100% !important;
+	background-size: cover !important;
+	background-position: center !important;
+	background-repeat: no-repeat !important;
+	background-color: #2271b1 !important;
+	border-bottom: 1px solid #dcdcde !important;
+}
+
+/* 4. Body - Takes remaining space and scrolls internally */
+.cp-modal-body {
+	flex: 1 1 auto !important;
+	overflow-y: auto !important;
+	overflow-x: hidden !important;
+	padding: 30px 40px !important;
+	background: #fff !important;
+	scroll-behavior: auto !important;
+	outline: none !important; /* For the tabindex override */
+}
+
+/* 5. Footer - Never shrinks, static height at bottom */
 .cp-modal-footer {
-	flex-shrink: 0;
-	padding: 20px 40px;
-	background: #f6f7f7;
-	border-top: 1px solid #dcdcde;
-	display: flex;
-	justify-content: flex-end; /* Aligns action buttons to right */
-	align-items: center;
+	flex: 0 0 auto !important;
+	padding: 20px 40px !important;
+	background: #f6f7f7 !important;
+	border-top: 1px solid #dcdcde !important;
+	display: flex !important;
+	justify-content: flex-end !important;
+	align-items: center !important;
 }
 
-/* Floating Close Button at Top Right */
-.cp-modal-close {
+/* Close Button */
+button.cp-modal-close {
 	position: absolute !important;
 	top: 20px !important;
 	right: 20px !important;
@@ -337,83 +187,28 @@
 	align-items: center !important;
 	justify-content: center !important;
 	cursor: pointer !important;
-	z-index: 100001 !important; /* Make sure it's clickable above banner */
+	z-index: 100001 !important;
 	color: #3c434a !important;
 }
-
-.cp-modal-close .dashicons {
-	font-size: 24px;
-	width: 24px;
-	height: 24px;
-}
-
-.cp-modal-close:hover {
+button.cp-modal-close:hover {
 	color: #d63638 !important;
-	transform: scale(1.05) !important;
-}
-
-.cp-modal-close:hover {
-	background: #fff;
-	color: #d63638; /* Red on hover to indicate close */
 	transform: scale(1.05);
 }
 
-/* ==========================================================================
-   Prevent dialog-level scroll and WP heading offset interference
-   ========================================================================== */
+/* Modal Typography */
+.cp-modal-title { margin: 0 0 10px !important; font-size: 2em !important; font-weight: 600 !important; line-height: 1.2 !important; color: #1d2327 !important; }
+.cp-modal-version { font-size: 13px !important; background: #f0f0f1 !important; padding: 4px 8px !important; border-radius: 12px !important; vertical-align: middle !important; color: #50575e !important; font-weight: 600 !important; display: inline-block !important; margin-left: 8px !important; }
+.cp-modal-author { margin: 0 0 25px !important; color: #646970 !important; font-size: 15px !important; }
+.cp-modal-description h1, .cp-modal-description h2, .cp-modal-description h3 { margin-top: 1.5em !important; margin-bottom: 0.5em !important; color: #1d2327 !important; }
+.cp-modal-description p { margin-bottom: 1em !important; font-size: 14px !important; line-height: 1.6 !important;}
 
-/* The dialog itself must NEVER scroll — only the body panel inside it */
-.cp-modal-dialog {
-	overflow: hidden !important;
-	overscroll-behavior: contain;
-}
+/* Animations */
+dialog#cp-details-modal[open] { animation: cpSlideInRight 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+dialog#cp-details-modal.cp-is-closing { animation: cpSlideOutRight 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+dialog#cp-details-modal[open]::backdrop { animation: cpFadeIn 0.35s ease forwards; }
+dialog#cp-details-modal.cp-is-closing::backdrop { animation: cpFadeOut 0.3s ease forwards; }
 
-/* WP admin injects scroll-margin-top on headings for the sticky toolbar.
-   Reset it inside our drawer so it doesn't push content down on open. */
-.cp-modal-dialog *,
-.cp-modal-dialog h1,
-.cp-modal-dialog h2,
-.cp-modal-dialog h3,
-.cp-modal-dialog h4,
-.cp-modal-dialog h5,
-.cp-modal-dialog h6 {
-	scroll-margin-top: 0 !important;
-	scroll-padding-top: 0 !important;
-}
-
-/* Force the inner layout to be a strict flex column filling the dialog */
-.cp-modal-content {
-	display: flex;
-	flex-direction: column;
-	height: 100%;
-	overflow: hidden; /* Children manage their own overflow */
-}
-
-/* Banner: fixed height, never shrinks */
-.cp-modal-visual {
-	flex: 0 0 250px;
-	background-size: cover;
-	background-position: center;
-	background-repeat: no-repeat;
-}
-
-/* Body: takes all remaining space and scrolls only when content overflows */
-.cp-modal-body {
-	flex: 1 1 auto;
-	overflow-y: auto;
-	overflow-x: hidden;
-	padding: 30px 40px;
-	/* Reset any initial scroll position */
-	scroll-behavior: auto;
-}
-
-/* Footer: fixed height at the bottom, never scrolls */
-.cp-modal-footer {
-	flex: 0 0 auto;
-	padding: 20px 40px;
-	background: #f6f7f7;
-	border-top: 1px solid #dcdcde;
-	display: flex;
-	justify-content: flex-end;
-	align-items: center;
-}
+@keyframes cpSlideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes cpSlideOutRight { from { transform: translateX(0); } to { transform: translateX(100%); } }
+@keyframes cpFadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cpFadeOut { from { opacity: 1; } to { opacity: 0; } }
