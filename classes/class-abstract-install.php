@@ -247,19 +247,29 @@ abstract class Abstract_Install {
 
 			// Right: Action Button
 			echo '<div class="cp-card-action">';
-			if ( $is_active ) {
-				echo '<button type="button" class="button button-primary cp-btn-active" disabled>Active</button>';
-			} elseif ( $is_installed ) {
-				$activate_url = wp_nonce_url( add_query_arg( array( 'action' => 'activate', 'slug' => $slug ) ), 'activate', '_cpdi' );
-				echo '<a href="' . esc_url( $activate_url ) . '" class="button cp-btn-activate">Activate</a>';
-			} else {
-				$install_url = wp_nonce_url( add_query_arg( array( 'action' => 'install', 'slug' => $slug ) ), 'install', '_cpdi' );
-				echo '<a href="' . esc_url( $install_url ) . '" class="button cp-btn-install">Install</a>';
-			}
-			echo '</div>';
-
-			echo '</div>'; // End cp-card-bottom-bar
-			echo '</div>'; // End cp-card
+if ( $is_active ) {
+    echo '<button type="button" class="button button-primary cp-btn-active" disabled>' . esc_html__( 'Active', 'classicpress-directory-integration' ) . '</button>';
+} elseif ( $is_installed ) {
+    $activate_url = wp_nonce_url( add_query_arg( array( 'action' => 'activate', 'slug' => $slug ), $activate ), 'cpdi' );
+    $delete_url   = wp_nonce_url( add_query_arg( array( 'action' => 'delete-plugin', 'plugin' => $slug ), admin_url( 'plugins.php' ) ), 'delete-plugin_' . $slug );
+    
+    // We wrap them in a small container so flexbox can stack them vertically
+    echo '<div class="cp-action-group">';
+    echo '<a href="' . esc_url( $activate_url ) . '" class="button cp-btn-activate">' . esc_html__( 'Activate', 'classicpress-directory-integration' ) . '</a>';
+    
+    // For themes, the delete URL is slightly different, but let's handle the simple case first. 
+    // If it's a theme:
+    if ( $is_theme ) {
+        $delete_url = wp_nonce_url( add_query_arg( array( 'action' => 'delete', 'stylesheet' => $slug ), admin_url( 'themes.php' ) ), 'delete-theme_' . $slug );
+    }
+    
+    echo '<a href="' . esc_url( $delete_url ) . '" class="cp-delete-link aria-button-if-js" style="color: #d63638; font-size: 13px; text-decoration: none; margin-top: 4px; display: inline-block;">' . esc_html__( 'Delete', 'classicpress-directory-integration' ) . '</a>';
+    echo '</div>';
+} else {
+    $install_url = wp_nonce_url( add_query_arg( array( 'action' => 'install', 'slug' => $slug ), $install ), 'cpdi' );
+    echo '<a href="' . esc_url( $install_url ) . '" class="button cp-btn-install">' . esc_html__( 'Install', 'classicpress-directory-integration' ) . '</a>';
+}
+echo '</div>'; // End cp-card-action
 		}
 
 		echo '</div>'; // End Grid
