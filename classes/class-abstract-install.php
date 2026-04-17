@@ -57,29 +57,10 @@ abstract class Abstract_Install {
 	// Abstract methods to be implemented by child classes
 	// --------------------------------------------------------
 
-	/**
-	 * Create the admin menu.
-	 */
 	abstract public function create_menu();
-
-	/**
-	 * Rename the admin menu.
-	 */
 	abstract public function rename_menu();
-
-	/**
-	 * Get local ClassicPress items.
-	 */
 	abstract protected function get_local_cp_items();
-
-	/**
-	 * Handle the activate action.
-	 */
 	abstract public function activate_action();
-
-	/**
-	 * Handle the install action.
-	 */
 	abstract public function install_action();
 
 	// --------------------------------------------------------
@@ -87,36 +68,32 @@ abstract class Abstract_Install {
 	// --------------------------------------------------------
 
 	/**
-	 * Enqueue styles for the admin page.
-	 *
-	 * @param string $hook The current admin page.
+	 * Enqueue styles for the admin page with cache-busting.
 	 */
 	public function styles( $hook ) {
 		if ( $hook !== $this->page ) {
 			return;
 		}
-		wp_enqueue_style( 'classicpress-directory-integration-css', plugins_url( '../styles/directory-integration.css', __FILE__ ), array(), '1.0.0' );
+		// Automatically cache-bust based on file modification time so you never have to hard-refresh CSS.
+		$css_file = plugin_dir_path( dirname( __FILE__ ) ) . 'styles/directory-integration.css';
+		$version  = file_exists( $css_file ) ? filemtime( $css_file ) : '1.0.0';
+		wp_enqueue_style( 'classicpress-directory-integration-css', plugins_url( '../styles/directory-integration.css', __FILE__ ), array(), $version );
 	}
 
 	/**
-	 * Enqueue scripts for the admin page.
-	 *
-	 * @param string $hook The current admin page.
+	 * Enqueue scripts for the admin page with cache-busting.
 	 */
 	public function scripts( $hook ) {
 		if ( $hook !== $this->page ) {
 			return;
 		}
-		wp_enqueue_script( 'classicpress-directory-integration-js', plugins_url( '../scripts/directory-integration.js', __FILE__ ), array( 'wp-i18n' ), '1.0.0', true );
+		// Automatically cache-bust based on file modification time so you never have to hard-refresh JS.
+		$js_file = plugin_dir_path( dirname( __FILE__ ) ) . 'scripts/directory-integration.js';
+		$version = file_exists( $js_file ) ? filemtime( $js_file ) : '1.0.0';
+		wp_enqueue_script( 'classicpress-directory-integration-js', plugins_url( '../scripts/directory-integration.js', __FILE__ ), array( 'wp-i18n' ), $version, true );
 		wp_set_script_translations( 'classicpress-directory-integration-js', 'classicpress-directory-integration', plugin_dir_path( dirname( __FILE__ ) ) . 'languages' );
 	}
 
-	/**
-	 * Add an admin notice to be displayed.
-	 *
-	 * @param string $message The notice message.
-	 * @param bool   $failure Whether the notice is an error.
-	 */
 	protected function add_notice( $message, $failure = false ) {
 		$transient_key = 'cpdi_' . substr( $this->type, 0, 1 ) . 'i_notices';
 		$other_notices = get_transient( $transient_key );
@@ -128,9 +105,6 @@ abstract class Abstract_Install {
 		set_transient( $transient_key, $notice, \HOUR_IN_SECONDS );
 	}
 
-	/**
-	 * Display stored admin notices.
-	 */
 	protected function display_notices() {
 		$transient_key = 'cpdi_' . substr( $this->type, 0, 1 ) . 'i_notices';
 		$notices       = get_transient( $transient_key );
@@ -140,13 +114,6 @@ abstract class Abstract_Install {
 		}
 	}
 
-	/**
-	 * Perform a request to the ClassicPress Directory API.
-	 *
-	 * @param array  $args Request arguments.
-	 * @param string $type The item type ('plugins' or 'themes').
-	 * @return array Response result.
-	 */
 	public static function do_directory_request( $args, $type ) {
 		$result = array(
 			'success'  => false,
@@ -198,12 +165,6 @@ abstract class Abstract_Install {
 		return $result;
 	}
 
-	/**
-	 * Sanitize API request arguments.
-	 *
-	 * @param array $args The arguments to sanitize.
-	 * @return array
-	 */
 	public static function sanitize_args( $args ) {
 		$sanitized_args = array();
 
@@ -222,14 +183,12 @@ abstract class Abstract_Install {
 				case 'page':
 					$sanitized_args[ $safe_key ] = (int) $value;
 					break;
-
 				case 'category':
 				case 'tag':
 				case 'byslug':
 				case '_fields':
 					$sanitized_args[ $safe_key ] = preg_replace( '/[^A-Za-z0-9,_-]/', '', (string) $value );
 					break;
-
 				case 'search':
 				case 's':
 				default:
@@ -241,9 +200,6 @@ abstract class Abstract_Install {
 		return $sanitized_args;
 	}
 
-	/**
-	 * Render the main grid menu.
-	 */
 	public function render_menu() {
 		$local_items = $this->get_local_cp_items();
 		$is_theme    = $this->type === 'themes';
@@ -268,17 +224,8 @@ abstract class Abstract_Install {
 		$response = self::do_directory_request( $api_args, $this->type );
 		$items    = ( $response['success'] && ! empty( $response['response'] ) ) ? $response['response'] : array();
 
-		// Build the base URL for install/activate actions to point to the current page.
-		$current_page_url = add_query_arg(
-			array(
-				'page' => $current_page_slug,
-			),
-			admin_url( is_multisite() ? 'network/admin.php' : 'admin.php' )
-		);
-
 		echo '<div class="wrap cp-directory-wrap">';
 
-		// Header & Search
 		echo '<div class="cp-directory-header">';
 		echo '<h1 class="wp-heading-inline">Install ClassicPress ' . esc_html( $type_label ) . '</h1>';
 		echo '<form class="search-form search-plugins" method="get">';
@@ -292,7 +239,6 @@ abstract class Abstract_Install {
 
 		$this->display_notices();
 
-		// The Grid
 		echo '<div class="cp-directory-grid" id="cp-directory-grid">';
 
 		foreach ( $items as $item ) {
@@ -315,7 +261,7 @@ abstract class Abstract_Install {
 				echo '<div class="cp-card-banner" style="background-image: url(\'' . esc_url( $banner_url ) . '\');"></div>';
 				echo '<div class="cp-card-description">' . wp_kses_post( wp_trim_words( $item['excerpt']['rendered'], 20 ) ) . '</div>';
 			}
-			echo '</div>'; // End cp-card-visual.
+			echo '</div>';
 
 			echo '<div class="cp-card-bottom-bar">';
 			echo '<div class="cp-card-info">';
@@ -327,12 +273,12 @@ abstract class Abstract_Install {
 			echo '<button type="button" class="cp-details-button" data-item-data="' . esc_attr( wp_json_encode( $item ) ) . '">Details</button>';
 			echo '</div>';
 
-			// Action Area.
 			echo '<div class="cp-card-action">';
 			if ( $is_active ) {
 				echo '<button type="button" class="button button-primary cp-btn-active" disabled>' . esc_html__( 'Active', 'classicpress-directory-integration' ) . '</button>';
 			} elseif ( $is_installed ) {
-				$activate_url = wp_nonce_url( add_query_arg( array( 'action' => 'activate', 'slug' => $slug ), $current_page_url ), 'activate', 'cpdi' );
+				// Reverted back to letting add_query_arg use the current URI safely
+				$activate_url = wp_nonce_url( add_query_arg( array( 'action' => 'activate', 'slug' => $slug ) ), 'activate', 'cpdi' );
 				$delete_url   = wp_nonce_url( add_query_arg( array( 'action' => 'delete-plugin', 'plugin' => $slug ), admin_url( 'plugins.php' ) ), 'delete-plugin_' . $slug );
 
 				echo '<div class="cp-action-group">';
@@ -345,15 +291,16 @@ abstract class Abstract_Install {
 				echo '<a href="' . esc_url( $delete_url ) . '" class="cp-delete-link aria-button-if-js" style="color: #d63638; font-size: 13px; text-decoration: none; margin-top: 4px; display: inline-block; text-align: center;">' . esc_html__( 'Delete', 'classicpress-directory-integration' ) . '</a>';
 				echo '</div>';
 			} else {
-				$install_url = wp_nonce_url( add_query_arg( array( 'action' => 'install', 'slug' => $slug ), $current_page_url ), 'install', 'cpdi' );
+				// Reverted back to letting add_query_arg use the current URI safely
+				$install_url = wp_nonce_url( add_query_arg( array( 'action' => 'install', 'slug' => $slug ) ), 'install', 'cpdi' );
 				echo '<a href="' . esc_url( $install_url ) . '" class="button cp-btn-install">' . esc_html__( 'Install', 'classicpress-directory-integration' ) . '</a>';
 			}
-			echo '</div>'; // End cp-card-action.
-			echo '</div>'; // End cp-card-bottom-bar.
-			echo '</div>'; // End cp-card.
+			echo '</div>';
+			echo '</div>';
+			echo '</div>';
 		}
 
-		echo '</div>'; // End Grid.
+		echo '</div>';
 
 		echo '<div id="cp-infinite-scroll-trigger" class="cp-skeleton-loader" style="display: none;">';
 		echo '<span class="spinner is-active"></span> Loading more...';
@@ -364,6 +311,6 @@ abstract class Abstract_Install {
 		echo '<button type="button" class="cp-modal-close"><span class="dashicons dashicons-no-alt"></span></button>';
 		echo '</dialog>';
 
-		echo '</div>'; // End Wrap.
+		echo '</div>';
 	}
 }
