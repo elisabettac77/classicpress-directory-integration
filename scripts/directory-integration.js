@@ -23,7 +23,13 @@ document.addEventListener('DOMContentLoaded', function () {
 			// Extract the action buttons from the grid card to reuse in the modal footer
 			var actionsHtml = card.querySelector('.cp-card-action').innerHTML;
 			
-						// Figure out the visual image (Banner for plugins, Screenshot for themes)
+			// 1. EXTRACT TEXTUAL DATA FIRST (So we can use the title for the SVG)
+			var title = itemData.title && itemData.title.rendered ? itemData.title.rendered : __('Details', 'classicpress-directory-integration');
+			var author = itemData.meta && itemData.meta.developer_name ? itemData.meta.developer_name : __('Unknown', 'classicpress-directory-integration');
+			var version = itemData.meta && itemData.meta.current_version ? itemData.meta.current_version : '';
+			var content = itemData.content && itemData.content.rendered ? itemData.content.rendered : __('No description provided.', 'classicpress-directory-integration');
+
+			// 2. FIGURE OUT VISUAL IMAGE
 			var visualUrl = '';
 			if (itemData.meta && itemData.meta.screenshot_url) {
 				visualUrl = itemData.meta.screenshot_url;
@@ -31,7 +37,7 @@ document.addEventListener('DOMContentLoaded', function () {
 				visualUrl = itemData.meta.banner_url;
 			}
 
-			// Generate a beautiful SVG fallback if no image exists
+			// 3. GENERATE VISUAL STYLES (Including the SVG fallback using the 'title' variable)
 			var visualStyles = '';
 			if (visualUrl) {
 				visualStyles = 'background-image: url(\'' + visualUrl + '\'); background-size: cover;';
@@ -42,25 +48,11 @@ document.addEventListener('DOMContentLoaded', function () {
 				visualStyles = 'background-image: url(\'data:image/svg+xml;utf8,' + encodeURIComponent(svg) + '\'); background-size: cover;';
 			}
 			
+			// 4. BUILD THE HTML
 			var html = '';
 			
 			// Top Visual Area
 			html += '<div class="cp-modal-visual" style="' + visualStyles + '"></div>';
-
-			// Extract textual data with fallbacks
-			var title = itemData.title && itemData.title.rendered ? itemData.title.rendered : __('Details', 'classicpress-directory-integration');
-			var author = itemData.meta && itemData.meta.developer_name ? itemData.meta.developer_name : __('Unknown', 'classicpress-directory-integration');
-			var version = itemData.meta && itemData.meta.current_version ? itemData.meta.current_version : '';
-			var content = itemData.content && itemData.content.rendered ? itemData.content.rendered : __('No description provided.', 'classicpress-directory-integration');
-			
-			var html = '';
-			
-			// Top Visual Area
-			if (visualUrl) {
-				html += '<div class="cp-modal-visual" style="background-image: url(\'' + visualUrl + '\');"></div>';
-			} else {
-				html += '<div class="cp-modal-visual cp-modal-visual-fallback"></div>';
-			}
 			
 			// Scrollable Body
 			html += '<div class="cp-modal-body">';
