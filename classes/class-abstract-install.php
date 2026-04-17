@@ -5,14 +5,14 @@
  * @package ClassicPress\DirectoryIntegration
  */
 
-namespace ClassicPress;
+namespace ClassicPress\Directory;
 
 require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
 
 /**
  * Abstract_Install class.
  */
-abstract class AbstractInstall {
+abstract class Abstract_Install {
 	use Helpers;
 
 	/**
@@ -125,7 +125,7 @@ abstract class AbstractInstall {
 		$notice       .= '<div class="notice ' . esc_attr( $failure_style ) . ' is-dismissible">';
 		$notice       .= '    <p>' . esc_html( $message ) . '</p>';
 		$notice       .= '</div>';
-		set_transient( $transient_key, $notice, HOUR_IN_SECONDS );
+		set_transient( $transient_key, $notice, \HOUR_IN_SECONDS );
 	}
 
 	/**
@@ -163,7 +163,7 @@ abstract class AbstractInstall {
 		}
 
 		$args     = self::sanitize_args( $args );
-		$endpoint = defined( 'CLASSICPRESS_DIRECTORY_INTEGRATION_URL' ) ? CLASSICPRESS_DIRECTORY_INTEGRATION_URL . $type : 'https://directory.classicpress.net/wp-json/wp/v2/' . $type;
+		$endpoint = defined( '\CLASSICPRESS_DIRECTORY_INTEGRATION_URL' ) ? \CLASSICPRESS_DIRECTORY_INTEGRATION_URL . $type : 'https://directory.classicpress.net/wp-json/wp/v2/' . $type;
 		$endpoint = add_query_arg( $args, $endpoint );
 
 		$response = wp_remote_get(
@@ -249,7 +249,6 @@ abstract class AbstractInstall {
 		$is_theme    = $this->type === 'themes';
 		$type_label  = $is_theme ? esc_html__( 'Themes', 'classicpress-directory-integration' ) : esc_html__( 'Plugins', 'classicpress-directory-integration' );
 
-		// Handle Search Query
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$search_query = isset( $_REQUEST['s'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['s'] ) ) : '';
 		
