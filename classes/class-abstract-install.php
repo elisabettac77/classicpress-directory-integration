@@ -1,46 +1,17 @@
 <?php
-/**
- * Abstract class for handling directory integration installations.
- *
- * @package ClassicPress\DirectoryIntegration
- */
 
-namespace ClassicPress\Directory;
+namespace ClassicPress;
 
 require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
 
-/**
- * Abstract_Install class.
- */
-abstract class Abstract_Install {
+abstract class AbstractInstall {
 	use Helpers;
 
-	/**
-	 * Local CP items array.
-	 *
-	 * @var bool|array
-	 */
 	protected $local_cp_items = false;
-
-	/**
-	 * Menu page hook suffix.
-	 *
-	 * @var string|null
-	 */
 	protected $page = null;
-
-	/**
-	 * Type of item ('plugins' or 'themes').
-	 *
-	 * @var string
-	 */
 	protected $type = '';
 
-	/**
-	 * Constructor.
-	 */
 	public function __construct() {
-		// Hook late enough to ensure parent menus exist.
 		if ( is_multisite() ) {
 			add_action( 'network_admin_menu', array( $this, 'create_menu' ), 100 );
 			add_action( 'network_admin_menu', array( $this, 'rename_menu' ), 101 );
@@ -53,41 +24,21 @@ abstract class Abstract_Install {
 		add_action( 'admin_enqueue_scripts', array( $this, 'scripts' ) );
 	}
 
-	// --------------------------------------------------------
-	// Abstract methods to be implemented by child classes
-	// --------------------------------------------------------
-
 	abstract public function create_menu();
 	abstract public function rename_menu();
 	abstract protected function get_local_cp_items();
 	abstract public function activate_action();
 	abstract public function install_action();
 
-	// --------------------------------------------------------
-	// Deduplicated Shared Logic
-	// --------------------------------------------------------
-
-	/**
-	 * Enqueue styles for the admin page with cache-busting.
-	 */
 	public function styles( $hook ) {
-		if ( $hook !== $this->page ) {
-			return;
-		}
-		// Automatically cache-bust based on file modification time so you never have to hard-refresh CSS.
+		if ( $hook !== $this->page ) return;
 		$css_file = plugin_dir_path( dirname( __FILE__ ) ) . 'styles/directory-integration.css';
 		$version  = file_exists( $css_file ) ? filemtime( $css_file ) : '1.0.0';
 		wp_enqueue_style( 'classicpress-directory-integration-css', plugins_url( '../styles/directory-integration.css', __FILE__ ), array(), $version );
 	}
 
-	/**
-	 * Enqueue scripts for the admin page with cache-busting.
-	 */
 	public function scripts( $hook ) {
-		if ( $hook !== $this->page ) {
-			return;
-		}
-		// Automatically cache-bust based on file modification time so you never have to hard-refresh JS.
+		if ( $hook !== $this->page ) return;
 		$js_file = plugin_dir_path( dirname( __FILE__ ) ) . 'scripts/directory-integration.js';
 		$version = file_exists( $js_file ) ? filemtime( $js_file ) : '1.0.0';
 		wp_enqueue_script( 'classicpress-directory-integration-js', plugins_url( '../scripts/directory-integration.js', __FILE__ ), array( 'wp-i18n' ), $version, true );
@@ -99,9 +50,7 @@ abstract class Abstract_Install {
 		$other_notices = get_transient( $transient_key );
 		$notice        = $other_notices === false ? '' : $other_notices;
 		$failure_style = $failure ? 'notice-error' : 'notice-success';
-		$notice       .= '<div class="notice ' . esc_attr( $failure_style ) . ' is-dismissible">';
-		$notice       .= '    <p>' . esc_html( $message ) . '</p>';
-		$notice       .= '</div>';
+		$notice       .= '<div class="notice ' . esc_attr( $failure_style ) . ' is-dismissible"><p>' . esc_html( $message ) . '</p></div>';
 		set_transient( $transient_key, $notice, \HOUR_IN_SECONDS );
 	}
 
@@ -114,90 +63,54 @@ abstract class Abstract_Install {
 		}
 	}
 
+	protected function get_redirect_url() {
+		$sendback = wp_get_referer();
+		if ( ! $sendback ) {
+			$sendback = admin_url( ( $this->type === 'themes' ? 'themes.php' : 'plugins.php' ) ) . '?page=' . $this->page;
+		}
+		return remove_query_arg( array( 'action', 'slug', 'cpdi', '_wpnonce' ), $sendback );
+	}
+
+	protected function get_fallback_svg( $title ) {
+		$letter = mb_strtoupper( mb_substr( $title, 0, 1 ) );
+		$svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 250"><rect width="800" height="250" fill="#2271b1"/><text x="400" y="140" text-anchor="middle" dominant-baseline="middle" font-family="system-ui,sans-serif" font-size="160" font-weight="700" fill="rgba(255,255,255,0.15)">' . esc_html( $letter ) . '</text></svg>';
+		return 'data:image/svg+xml;base64,' . base64_encode( $svg );
+	}
+
 	public static function do_directory_request( $args, $type ) {
-		$result = array(
-			'success'  => false,
-			'response' => array(),
-		);
+		$result = array( 'success' => false, 'response' => array() );
+		if ( ! is_array( $args ) ) $args = array();
+		if ( ! in_array( $type, array( 'plugins', 'themes' ), true ) ) return $result;
 
-		if ( ! is_array( $args ) ) {
-			$args = array();
-		}
-
-		if ( ! in_array( $type, array( 'plugins', 'themes' ), true ) ) {
-			$result['error'] = $type . ' is not a supported type';
-			return $result;
-		}
-
-		$args     = self::sanitize_args( $args );
 		$endpoint = defined( '\CLASSICPRESS_DIRECTORY_INTEGRATION_URL' ) ? \CLASSICPRESS_DIRECTORY_INTEGRATION_URL . $type : 'https://directory.classicpress.net/wp-json/wp/v2/' . $type;
-		$endpoint = add_query_arg( $args, $endpoint );
+		$endpoint = add_query_arg( self::sanitize_args( $args ), $endpoint );
 
-		$response = wp_remote_get(
-			$endpoint,
-			array(
-				'user-agent' => function_exists( 'classicpress_user_agent' ) ? classicpress_user_agent( true ) : 'ClassicPress',
-				'timeout'    => 20,
-			)
-		);
+		$response = wp_remote_get( $endpoint, array( 'user-agent' => function_exists( 'classicpress_user_agent' ) ? classicpress_user_agent( true ) : 'ClassicPress', 'timeout' => 20 ) );
 
-		if ( is_wp_error( $response ) ) {
-			$result['error'] = $response->get_error_message();
-			return $result;
-		}
+		if ( is_wp_error( $response ) || wp_remote_retrieve_response_code( $response ) !== 200 ) return $result;
 
-		if ( wp_remote_retrieve_response_code( $response ) !== 200 ) {
-			$result['error'] = 'Unexpected response code: ' . wp_remote_retrieve_response_code( $response );
-			return $result;
-		}
-
-		$body = wp_remote_retrieve_body( $response );
-		$data = json_decode( $body, true );
-
-		if ( ! is_array( $data ) ) {
-			$result['error'] = 'Invalid API response.';
-			return $result;
-		}
+		$data = json_decode( wp_remote_retrieve_body( $response ), true );
+		if ( ! is_array( $data ) ) return $result;
 
 		$result['success']  = true;
 		$result['response'] = $data;
-
 		return $result;
 	}
 
 	public static function sanitize_args( $args ) {
-		$sanitized_args = array();
-
-		if ( ! is_array( $args ) ) {
-			return $sanitized_args;
-		}
-
-		foreach ( $args as $key => $value ) {
+		$sanitized = array();
+		foreach ( (array) $args as $key => $value ) {
 			$safe_key = preg_replace( '/[^A-Za-z0-9_]/', '', $key );
-			if ( empty( $safe_key ) ) {
-				continue;
-			}
-
-			switch ( $safe_key ) {
-				case 'per_page':
-				case 'page':
-					$sanitized_args[ $safe_key ] = (int) $value;
-					break;
-				case 'category':
-				case 'tag':
-				case 'byslug':
-				case '_fields':
-					$sanitized_args[ $safe_key ] = preg_replace( '/[^A-Za-z0-9,_-]/', '', (string) $value );
-					break;
-				case 'search':
-				case 's':
-				default:
-					$sanitized_args[ $safe_key ] = sanitize_text_field( (string) $value );
-					break;
+			if ( empty( $safe_key ) ) continue;
+			if ( in_array( $safe_key, array( 'per_page', 'page' ) ) ) {
+				$sanitized[ $safe_key ] = (int) $value;
+			} elseif ( in_array( $safe_key, array( 'category', 'tag', 'byslug', '_fields' ) ) ) {
+				$sanitized[ $safe_key ] = preg_replace( '/[^A-Za-z0-9,\-]/', '', (string) $value );
+			} else {
+				$sanitized[ $safe_key ] = sanitize_text_field( (string) $value );
 			}
 		}
-
-		return $sanitized_args;
+		return $sanitized;
 	}
 
 	public function render_menu() {
@@ -207,35 +120,27 @@ abstract class Abstract_Install {
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$search_query = isset( $_REQUEST['s'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['s'] ) ) : '';
-		
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$current_page_slug = isset( $_REQUEST['page'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['page'] ) ) : '';
 
-		$api_args = array(
-			'per_page' => 15,
-			'_fields'  => 'title,meta,content,excerpt',
-		);
-
+		$api_args = array( 'per_page' => 15, '_fields' => 'title,meta,content,excerpt' );
 		if ( ! empty( $search_query ) ) {
-			$taxonomy_param              = $is_theme ? 'tag' : 'category';
-			$api_args[ $taxonomy_param ] = $search_query;
+			$api_args[ $is_theme ? 'tag' : 'category' ] = $search_query;
 		}
 
 		$response = self::do_directory_request( $api_args, $this->type );
 		$items    = ( $response['success'] && ! empty( $response['response'] ) ) ? $response['response'] : array();
+		$base_url = admin_url( $is_theme ? 'themes.php' : 'plugins.php' ) . '?page=' . $current_page_slug;
 
 		echo '<div class="wrap cp-directory-wrap">';
-
 		echo '<div class="cp-directory-header">';
 		echo '<h1 class="wp-heading-inline">Install ClassicPress ' . esc_html( $type_label ) . '</h1>';
 		echo '<form class="search-form search-plugins" method="get">';
 		echo '<input type="hidden" name="page" value="' . esc_attr( $current_page_slug ) . '" />';
 		echo '<label><span class="screen-reader-text">Search ' . esc_html( $type_label ) . '</span>';
 		echo '<input type="search" name="s" value="' . esc_attr( $search_query ) . '" class="wp-filter-search" placeholder="Search ' . esc_attr( strtolower( $type_label ) ) . '..." />';
-		echo '</label>';
-		echo '<input type="submit" id="search-submit" class="button" value="Search" />';
-		echo '</form>';
-		echo '</div>';
+		echo '</label><input type="submit" id="search-submit" class="button" value="Search" />';
+		echo '</form></div>';
 
 		$this->display_notices();
 
@@ -245,72 +150,74 @@ abstract class Abstract_Install {
 			$slug         = sanitize_key( $item['meta']['slug'] );
 			$is_installed = array_key_exists( $slug, $local_items );
 			$is_active    = $is_installed && $local_items[ $slug ]['Active'];
-
-			$state_class = $is_active ? 'cp-state-active' : ( $is_installed ? 'cp-state-inactive' : 'cp-state-uninstalled' );
+			$state_class  = $is_active ? 'cp-state-active' : ( $is_installed ? 'cp-state-inactive' : 'cp-state-uninstalled' );
 
 			echo '<div class="cp-card ' . esc_attr( $state_class ) . '" data-slug="' . esc_attr( $slug ) . '">';
-
 			echo '<div class="cp-card-visual">';
 			echo '<div class="cp-shield-badge" title="Passes ClassicPress Coding Standards"><span class="dashicons dashicons-shield"></span></div>';
 
-			if ( $is_theme ) {
-				$image_url = ! empty( $item['meta']['screenshot_url'] ) ? $item['meta']['screenshot_url'] : '';
-				echo '<div class="cp-card-screenshot" style="background-image: url(\'' . esc_url( $image_url ) . '\');"></div>';
-			} else {
-				$banner_url = ! empty( $item['meta']['banner_url'] ) ? $item['meta']['banner_url'] : '';
-				echo '<div class="cp-card-banner" style="background-image: url(\'' . esc_url( $banner_url ) . '\');"></div>';
+			$visual_url = '';
+			if ( $is_theme && ! empty( $item['meta']['screenshot_url'] ) ) {
+				$visual_url = $item['meta']['screenshot_url'];
+			} elseif ( ! $is_theme && ! empty( $item['meta']['banner_url'] ) ) {
+				$visual_url = $item['meta']['banner_url'];
+			}
+			
+			if ( empty( $visual_url ) ) {
+				$visual_url = $this->get_fallback_svg( $item['title']['rendered'] );
+			}
+
+			$visual_class = $is_theme ? 'cp-card-screenshot' : 'cp-card-banner';
+			echo '<div class="' . esc_attr( $visual_class ) . '" style="background-image: url(\'' . esc_url( $visual_url ) . '\');"></div>';
+			
+			if ( ! $is_theme ) {
 				echo '<div class="cp-card-description">' . wp_kses_post( wp_trim_words( $item['excerpt']['rendered'], 20 ) ) . '</div>';
 			}
 			echo '</div>';
 
+			// --- COMPACT 2-COLUMN LAYOUT ---
 			echo '<div class="cp-card-bottom-bar">';
+			
 			echo '<div class="cp-card-info">';
 			echo '<h3 class="cp-card-title">' . esc_html( $item['title']['rendered'] ) . '</h3>';
 			echo '<span class="cp-card-author">By ' . esc_html( $item['meta']['developer_name'] ) . '</span>';
 			echo '</div>';
 
-			echo '<div class="cp-card-details">';
-			echo '<button type="button" class="cp-details-button" data-item-data="' . esc_attr( wp_json_encode( $item ) ) . '">Details</button>';
-			echo '</div>';
-
 			echo '<div class="cp-card-action">';
 			if ( $is_active ) {
 				echo '<button type="button" class="button button-primary cp-btn-active" disabled>' . esc_html__( 'Active', 'classicpress-directory-integration' ) . '</button>';
+				echo '<div class="cp-card-links">';
+				echo '<button type="button" class="cp-details-button" data-item-data="' . esc_attr( wp_json_encode( $item ) ) . '">' . esc_html__( 'Details', 'classicpress-directory-integration' ) . '</button>';
+				echo '</div>';
 			} elseif ( $is_installed ) {
-				// Reverted back to letting add_query_arg use the current URI safely
-				$activate_url = wp_nonce_url( add_query_arg( array( 'action' => 'activate', 'slug' => $slug ) ), 'activate', 'cpdi' );
-				$delete_url   = wp_nonce_url( add_query_arg( array( 'action' => 'delete-plugin', 'plugin' => $slug ), admin_url( 'plugins.php' ) ), 'delete-plugin_' . $slug );
-
-				echo '<div class="cp-action-group">';
+				$activate_url = wp_nonce_url( add_query_arg( array( 'action' => 'activate', 'slug' => $slug ), $base_url ), 'activate', 'cpdi' );
+				$delete_url   = wp_nonce_url( add_query_arg( array( 'action' => ( $is_theme ? 'delete' : 'delete-plugin' ), ( $is_theme ? 'stylesheet' : 'plugin' ) => $slug ), admin_url( $is_theme ? 'themes.php' : 'plugins.php' ) ), ( $is_theme ? 'delete-theme_' : 'delete-plugin_' ) . $slug );
+				
 				echo '<a href="' . esc_url( $activate_url ) . '" class="button cp-btn-activate">' . esc_html__( 'Activate', 'classicpress-directory-integration' ) . '</a>';
-
-				if ( $is_theme ) {
-					$delete_url = wp_nonce_url( add_query_arg( array( 'action' => 'delete', 'stylesheet' => $slug ), admin_url( 'themes.php' ) ), 'delete-theme_' . $slug );
-				}
-
-				echo '<a href="' . esc_url( $delete_url ) . '" class="cp-delete-link aria-button-if-js" style="color: #d63638; font-size: 13px; text-decoration: none; margin-top: 4px; display: inline-block; text-align: center;">' . esc_html__( 'Delete', 'classicpress-directory-integration' ) . '</a>';
+				echo '<div class="cp-card-links">';
+				echo '<button type="button" class="cp-details-button" data-item-data="' . esc_attr( wp_json_encode( $item ) ) . '">' . esc_html__( 'Details', 'classicpress-directory-integration' ) . '</button>';
+				echo '<span class="cp-card-links-sep">&middot;</span>';
+				echo '<a href="' . esc_url( $delete_url ) . '" class="cp-delete-link">' . esc_html__( 'Delete', 'classicpress-directory-integration' ) . '</a>';
 				echo '</div>';
 			} else {
-				// Reverted back to letting add_query_arg use the current URI safely
-				$install_url = wp_nonce_url( add_query_arg( array( 'action' => 'install', 'slug' => $slug ) ), 'install', 'cpdi' );
+				$install_url = wp_nonce_url( add_query_arg( array( 'action' => 'install', 'slug' => $slug ), $base_url ), 'install', 'cpdi' );
 				echo '<a href="' . esc_url( $install_url ) . '" class="button cp-btn-install">' . esc_html__( 'Install', 'classicpress-directory-integration' ) . '</a>';
+				echo '<div class="cp-card-links">';
+				echo '<button type="button" class="cp-details-button" data-item-data="' . esc_attr( wp_json_encode( $item ) ) . '">' . esc_html__( 'Details', 'classicpress-directory-integration' ) . '</button>';
+				echo '</div>';
 			}
-			echo '</div>';
-			echo '</div>';
-			echo '</div>';
+			echo '</div>'; // End cp-card-action
+			echo '</div>'; // End cp-card-bottom-bar
+			echo '</div>'; // End cp-card
 		}
 
 		echo '</div>';
-
-		echo '<div id="cp-infinite-scroll-trigger" class="cp-skeleton-loader" style="display: none;">';
-		echo '<span class="spinner is-active"></span> Loading more...';
-		echo '</div>';
-
+		echo '<div id="cp-infinite-scroll-trigger" class="cp-skeleton-loader" style="display: none;"><span class="spinner is-active"></span> Loading more...</div>';
+		
 		echo '<dialog id="cp-details-modal" class="cp-modal-dialog">';
 		echo '<div class="cp-modal-content"></div>';
 		echo '<button type="button" class="cp-modal-close"><span class="dashicons dashicons-no-alt"></span></button>';
 		echo '</dialog>';
-
 		echo '</div>';
 	}
 }
