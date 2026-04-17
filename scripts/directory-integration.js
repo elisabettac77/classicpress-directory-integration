@@ -2,78 +2,91 @@
  * Functionality for the ClassicPress directory integration screens.
  */
 document.addEventListener('DOMContentLoaded', function () {
-	// Find all our new Details buttons
 	var openers = document.querySelectorAll('.cp-details-button');
-	
-	// Ensure we have a dialog element to work with
 	var dialog = document.getElementById('cp-details-modal');
 	var dialogContent = dialog ? dialog.querySelector('.cp-modal-content') : null;
 	var closeButton = dialog ? dialog.querySelector('.cp-modal-close') : null;
 
 	if (!dialog || !dialogContent || !closeButton) {
-		return; // Failsafe in case HTML isn't present
+		return;
 	}
 
-	// Helper function to handle localized strings
 	var __ = wp.i18n.__;
-	var sprintf = wp.i18n.sprintf;
 
-	/**
-	 * Render the content inside the modal when a button is clicked.
-	 */
 	openers.forEach(function (opener) {
 		opener.addEventListener('click', function (e) {
 			e.preventDefault();
 
-			// Parse the JSON data attached to the button
 			var itemData = JSON.parse(this.getAttribute('data-item-data'));
+			var card = this.closest('.cp-card');
+			
+			// Extract the action buttons from the grid card to reuse in the modal footer
+			var actionsHtml = card.querySelector('.cp-card-action').innerHTML;
+			
+			// Figure out the visual image (Banner for plugins, Screenshot for themes)
+			var visualUrl = '';
+			if (itemData.meta && itemData.meta.screenshot_url) {
+				visualUrl = itemData.meta.screenshot_url;
+			} else if (itemData.meta && itemData.meta.banner_url) {
+				visualUrl = itemData.meta.banner_url;
+			}
 
-			// Fallbacks
+			// Extract textual data with fallbacks
 			var title = itemData.title && itemData.title.rendered ? itemData.title.rendered : __('Details', 'classicpress-directory-integration');
 			var author = itemData.meta && itemData.meta.developer_name ? itemData.meta.developer_name : __('Unknown', 'classicpress-directory-integration');
 			var version = itemData.meta && itemData.meta.current_version ? itemData.meta.current_version : '';
 			var content = itemData.content && itemData.content.rendered ? itemData.content.rendered : __('No description provided.', 'classicpress-directory-integration');
 			
-			// Build the modal HTML inject
 			var html = '';
-			html += '<div class="cp-modal-header">';
-			html += '<h2>' + title + ' <span class="cp-version">' + version + '</span></h2>';
-			html += '<p class="cp-author">' + __('By', 'classicpress-directory-integration') + ' ' + author + '</p>';
-			html += '</div>';
 			
+			// Top Visual Area
+			if (visualUrl) {
+				html += '<div class="cp-modal-visual" style="background-image: url(\'' + visualUrl + '\');"></div>';
+			} else {
+				html += '<div class="cp-modal-visual cp-modal-visual-fallback"></div>';
+			}
+			
+			// Scrollable Body
 			html += '<div class="cp-modal-body">';
-			html += content; // The API provides this pre-rendered
+			html += '<h2 class="cp-modal-title">' + title + ' <span class="cp-modal-version">' + version + '</span></h2>';
+			html += '<p class="cp-modal-author">' + __('By', 'classicpress-directory-integration') + ' ' + author + '</p>';
+			html += '<div class="cp-modal-description">' + content + '</div>';
 			html += '</div>';
 
-			// Inject the HTML
-			dialogContent.innerHTML = html;
+			// Sticky Footer
+			html += '<div class="cp-modal-footer">';
+			html += actionsHtml;
+			html += '</div>';
 
+			dialogContent.innerHTML = html;
+			
 			// Show the modal natively
 			dialog.showModal();
-			
-			// Move focus to close button for accessibility
 			closeButton.focus();
 		});
 	});
 
 	/**
-	 * Close the modal via the close button
+	 * Smooth close function (slides out before clearing DOM)
 	 */
-	closeButton.addEventListener('click', function () {
-		dialog.close();
-		dialogContent.innerHTML = ''; // Clear out data
-	});
+	function closeModal() {
+		dialog.classList.add('cp-is-closing');
+		dialog.addEventListener('animationend', function handleClose() {
+			dialog.classList.remove('cp-is-closing');
+			dialog.close();
+			dialogContent.innerHTML = ''; 
+			dialog.removeEventListener('animationend', handleClose);
+		}, { once: true });
+	}
 
-	/**
-	 * Close the modal by clicking outside of it (on the backdrop)
-	 */
+	closeButton.addEventListener('click', closeModal);
+
+	// Close on backdrop click
 	dialog.addEventListener('click', function(e) {
 		var rect = dialog.getBoundingClientRect();
 		var isInDialog = (rect.top <= e.clientY && e.clientY <= rect.top + rect.height && rect.left <= e.clientX && e.clientX <= rect.left + rect.width);
 		if (!isInDialog) {
-			dialog.close();
-			dialogContent.innerHTML = '';
+			closeModal();
 		}
 	});
-
 });
