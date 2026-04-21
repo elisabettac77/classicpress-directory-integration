@@ -105,6 +105,12 @@ abstract class Abstract_Install {
 					<label class="screen-reader-text" for="cpdi-search-input">
 						<?php esc_html_e( 'Search Directory...', 'cp-directory-integration' ); ?>
 					</label>
+					<select id="cpdi-search-type">
+						<option value="keyword"><?php esc_html_e( 'Keyword', 'cp-directory-integration' ); ?></option>
+   						<option value="author"><?php esc_html_e( 'Author', 'cp-directory-integration' ); ?></option>
+    					<option value="tag"><?php esc_html_e( 'Tag/Category', 'cp-directory-integration' ); ?></option>
+    					<option value="name"><?php esc_html_e( 'Name', 'cp-directory-integration' ); ?></option>
+					</select>
 					<input type="search" id="cpdi-search-input" class="wp-filter-search" placeholder="<?php esc_attr_e( 'Search...', 'cp-directory-integration' ); ?>">
 				</div>
 			</div>
