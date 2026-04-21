@@ -30,8 +30,8 @@ class Theme_Install extends Abstract_Install {
 	 */
 	public function register_menu(): void {
 		add_theme_page(
-			__( 'Install CP Themes', 'cp-directory-integration' ),
-			__( 'Install CP Themes', 'cp-directory-integration' ),
+			__( 'Install CP Themes', 'classicpress-directory-integration' ),
+			__( 'Install CP Themes', 'classicpress-directory-integration' ),
 			'install_themes',
 			'cp-directory-integration-themes',
 			array( $this, 'render_menu' )
@@ -42,22 +42,23 @@ class Theme_Install extends Abstract_Install {
 	 * Implementation of the grid content.
 	 */
 	protected function render_content(): void {
-		// 1. Get Search Parameters (Themes use 'tags' instead of 'categories').
-		$search_query = sanitize_text_field( $_GET['s'] ?? '' );
-		$search_type  = sanitize_text_field( $_GET['stype'] ?? 'keyword' );
+		// 1. Get Search Parameters. Unslash before sanitizing.
+		$search_query = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : '';
+		$search_type  = isset( $_GET['stype'] ) ? sanitize_text_field( wp_unslash( $_GET['stype'] ) ) : 'keyword';
 		
 		$endpoint = \CLASSICPRESS_DIRECTORY_INTEGRATION_URL . 'themes?per_page=20';
 		
 		if ( ! empty( $search_query ) ) {
 			$taxonomy = $this->get_taxonomy_key( 'theme' ); // Returns 'tag'
 			$param    = ( 'tag' === $search_type ) ? $taxonomy : $search_type;
-			$endpoint .= "&{$param}=" . urlencode( $search_query );
+			// Use rawurlencode for RFC 3986 compliance.
+			$endpoint .= "&{$param}=" . rawurlencode( $search_query );
 		}
 
 		$items = $this->fetch_directory_data( $endpoint );
 
 		if ( is_wp_error( $items ) || empty( $items ) ) {
-			echo '<p>' . esc_html__( 'No themes found.', 'cp-directory-integration' ) . '</p>';
+			echo '<p>' . esc_html__( 'No themes found.', 'classicpress-directory-integration' ) . '</p>';
 			return;
 		}
 
@@ -74,12 +75,13 @@ class Theme_Install extends Abstract_Install {
 
 	/**
 	 * Render an individual theme card.
+	 *
+	 * @param array $item Theme data from API.
 	 */
 	private function render_theme_card( array $item ): void {
 		$slug        = $item['slug'] ?? '';
 		$status      = $this->get_item_status( $slug, 'theme' );
 		$screenshot  = $item['meta']['screenshot_url'] ?? $this->get_svg_placeholder( $slug );
-		// Check top-level first, then fall back to the meta array, then default to empty.
 		$parent_slug = $item['parent_theme'] ?? $item['meta']['parent_theme'] ?? '';
 
 		?>
@@ -97,7 +99,10 @@ class Theme_Install extends Abstract_Install {
 					<?php if ( ! empty( $parent_slug ) ) : ?>
 						<p class="cpdi-child-theme-tag">
 							<span class="dashicons dashicons-media-code"></span> 
-							<?php printf( esc_html__( 'Child of %s', 'cp-directory-integration' ), esc_html( $parent_slug ) ); ?>
+							<?php 
+							/* translators: %s: Parent theme slug */
+							printf( esc_html__( 'Child of %s', 'classicpress-directory-integration' ), esc_html( $parent_slug ) ); 
+							?>
 						</p>
 					<?php endif; ?>
 				</div>
@@ -109,13 +114,13 @@ class Theme_Install extends Abstract_Install {
 					
 					<div class="cpdi-secondary-actions">
 						<a href="#" class="cpdi-details-trigger" data-slug="<?php echo esc_attr( $slug ); ?>">
-							<?php esc_html_e( 'Details', 'cp-directory-integration' ); ?>
+							<?php esc_html_e( 'Details', 'classicpress-directory-integration' ); ?>
 						</a>
 						
 						<?php if ( 'inactive' === $status ) : ?>
 							<span class="sep">|</span>
 							<a href="#" class="cpdi-delete-link delete-red" data-slug="<?php echo esc_attr( $slug ); ?>">
-								<?php esc_html_e( 'Delete', 'cp-directory-integration' ); ?>
+								<?php esc_html_e( 'Delete', 'classicpress-directory-integration' ); ?>
 							</a>
 						<?php endif; ?>
 					</div>
@@ -131,25 +136,30 @@ class Theme_Install extends Abstract_Install {
 	private function render_action_button( string $status, string $slug ): void {
 		switch ( $status ) {
 			case 'active':
-				// Themes have "Customize" instead of "Deactivate".
-				$customize_url = admin_url( 'customize.php?theme=' . urlencode( $slug ) );
-				echo '<a href="' . esc_url( $customize_url ) . '" class="button">' . esc_html__( 'Customize', 'cp-directory-integration' ) . '</a>';
+				// Themes use "Customize" instead of "Deactivate".
+				$customize_url = admin_url( 'customize.php?theme=' . rawurlencode( $slug ) );
+				echo '<a href="' . esc_url( $customize_url ) . '" class="button">' . esc_html__( 'Customize', 'classicpress-directory-integration' ) . '</a>';
 				break;
 			case 'inactive':
-				echo '<button class="button button-primary cpdi-button-activate" data-slug="' . esc_attr( $slug ) . '">' . esc_html__( 'Activate', 'cp-directory-integration' ) . '</button>';
+				echo '<button class="button button-primary cpdi-button-activate" data-slug="' . esc_attr( $slug ) . '">' . esc_html__( 'Activate', 'classicpress-directory-integration' ) . '</button>';
 				break;
 			default:
-				echo '<button class="button button-primary cpdi-button-install" data-slug="' . esc_attr( $slug ) . '">' . esc_html__( 'Install Now', 'cp-directory-integration' ) . '</button>';
+				echo '<button class="button button-primary cpdi-button-install" data-slug="' . esc_attr( $slug ) . '">' . esc_html__( 'Install Now', 'classicpress-directory-integration' ) . '</button>';
 				break;
 		}
 	}
 
+	/**
+	 * The Dialog Drawer shell.
+	 */
 	private function render_details_drawer(): void {
 		?>
 		<dialog id="cpdi-details-drawer" class="cpdi-drawer">
 			<div class="cpdi-drawer-content">
-				<button class="cpdi-drawer-close">&times;</button>
-				<div id="cpdi-drawer-inner"></div>
+				<button class="cpdi-drawer-close" aria-label="<?php esc_attr_e( 'Close', 'classicpress-directory-integration' ); ?>">&times;</button>
+				<div id="cpdi-drawer-inner">
+					<span class="spinner is-active"></span>
+				</div>
 			</div>
 		</dialog>
 		<?php
