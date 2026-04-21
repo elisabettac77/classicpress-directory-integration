@@ -1,99 +1,198 @@
 <?php
-namespace ClassicPress;
+/**
+ * Plugin Install Class
+ *
+ * @package ClassicPress\Directory\Integration
+ * @since   1.1.0
+ */
 
-class PluginInstall extends AbstractInstall {
+namespace ClassicPress\Directory\Integration;
 
+// Exit if accessed directly.
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+/**
+ * Handles the Plugin Installation UI and logic.
+ */
+class Plugin_Install extends Abstract_Install {
+
+	/**
+	 * Constructor.
+	 */
 	public function __construct() {
-		$this->type = 'plugins';
-		parent::__construct();
+		parent::__construct( 'plugin' );
+		
+		// Filter for the "View Details" modal content in standard WP lists.
+		add_filter( 'plugins_api', array( $this, 'plugin_information' ), 10, 3 );
 	}
 
-	public function create_menu() {
-		if ( ! current_user_can( 'install_plugins' ) ) return;
-		$this->page = add_submenu_page( 'plugins.php', esc_html__( 'Install ClassicPress Plugins', 'classicpress-directory-integration' ), esc_html__( 'Install CP Plugins', 'classicpress-directory-integration' ), 'install_plugins', 'classicpress-directory-integration-plugin-install', array( $this, 'render_menu' ), 2 );
-		add_action( 'load-' . $this->page, array( $this, 'activate_action' ) );
-		add_action( 'load-' . $this->page, array( $this, 'install_action' ) );
+	/**
+	 * Register the admin menu page under 'Plugins'.
+	 */
+	public function register_menu(): void {
+		add_plugins_page(
+			__( 'Install CP Plugins', 'cp-directory-integration' ),
+			__( 'Install CP Plugins', 'cp-directory-integration' ),
+			'install_plugins',
+			'cp-directory-integration-plugins',
+			array( $this, 'render_menu' )
+		);
 	}
 
-	public function rename_menu() {
-		if ( ! current_user_can( 'install_plugins' ) ) return;
-		global $submenu;
-		if ( isset( $submenu['plugins.php'] ) ) {
-			foreach ( $submenu['plugins.php'] as $key => $value ) {
-				if ( $value[2] !== 'plugin-install.php' ) continue;
-				$submenu['plugins.php'][ $key ][0] = esc_html__( 'Install WP Plugins', 'classicpress-directory-integration' ); // phpcs:ignore
+	/**
+	 * Implementation of the grid content.
+	 */
+	protected function render_content(): void {
+		// 1. Get Search Parameters.
+		$search_query = sanitize_text_field( $_GET['s'] ?? '' );
+		$search_type  = sanitize_text_field( $_GET['stype'] ?? 'keyword' ); // keyword, author, category
+		
+		// 2. Build API Endpoint.
+		$endpoint = \CLASSICPRESS_DIRECTORY_INTEGRATION_URL . 'plugins?per_page=20';
+		
+		if ( ! empty( $search_query ) ) {
+			$taxonomy = $this->get_taxonomy_key( 'plugin' );
+			$param    = ( 'category' === $search_type ) ? $taxonomy : $search_type;
+			$endpoint .= "&{$param}=" . urlencode( $search_query );
+		}
+
+		// 3. Fetch Data.
+		$items = $this->fetch_directory_data( $endpoint );
+
+		if ( is_wp_error( $items ) || empty( $items ) ) {
+			echo '<p>' . esc_html__( 'No plugins found in the directory.', 'cp-directory-integration' ) . '</p>';
+			return;
+		}
+
+		// 4. Sort: Active -> Inactive -> Not Installed.
+		$items = $this->sort_items_by_status( $items, 'plugin' );
+
+		// 5. Render Cards.
+		foreach ( $items as $item ) {
+			$this->render_plugin_card( $item );
+		}
+
+		// 6. The Side-Drawer (Dialog).
+		$this->render_details_drawer();
+	}
+
+	/**
+	 * Render an individual plugin card.
+	 *
+	 * @param array $item Plugin data from API.
+	 */
+	private function render_plugin_card( array $item ): void {
+		$slug     = $item['slug'] ?? '';
+		$status   = $this->get_item_status( $slug, 'plugin' );
+		$version  = $item['meta']['current_version'] ?? '0.0.0';
+		$banner   = $item['meta']['banner_low'] ?? $this->get_svg_placeholder( $slug );
+		
+		// Check for updates.
+		$has_update = false;
+		if ( 'not-installed' !== $status ) {
+			$local_data = $this->get_local_plugin_data( $slug );
+			if ( $local_data && version_compare( $local_data['Version'], $version, '<' ) ) {
+				$has_update = true;
 			}
 		}
+
+		?>
+		<div class="cpdi-card plugin-card-<?php echo esc_attr( $slug ); ?>" data-slug="<?php echo esc_attr( $slug ); ?>">
+			<?php if ( $has_update ) : ?>
+				<div class="notice notice-warning notice-alt inline">
+					<p><?php esc_html_e( 'New version available!', 'cp-directory-integration' ); ?></p>
+				</div>
+			<?php endif; ?>
+
+			<div class="cpdi-card-header">
+				<img src="<?php echo esc_url( $banner ); ?>" class="cpdi-card-banner" alt="">
+			</div>
+
+			<div class="cpdi-card-body">
+				<div class="cpdi-card-info">
+					<h3 class="cpdi-card-title"><?php echo esc_html( $item['title']['rendered'] ?? $slug ); ?></h3>
+					<p class="cpdi-card-author"><?php printf( esc_html__( 'By %s', 'cp-directory-integration' ), esc_html( $item['meta']['author'] ?? '' ) ); ?></p>
+				</div>
+
+				<div class="cpdi-card-actions">
+					<div class="cpdi-main-action">
+						<?php $this->render_action_button( $status, $slug ); ?>
+					</div>
+					
+					<div class="cpdi-secondary-actions">
+						<a href="#" class="cpdi-details-trigger" data-slug="<?php echo esc_attr( $slug ); ?>">
+							<?php esc_html_e( 'Details', 'cp-directory-integration' ); ?>
+						</a>
+						
+						<?php if ( 'inactive' === $status ) : ?>
+							<span class="sep">|</span>
+							<a href="#" class="cpdi-delete-link delete-red" data-slug="<?php echo esc_attr( $slug ); ?>">
+								<?php esc_html_e( 'Delete', 'cp-directory-integration' ); ?>
+							</a>
+						<?php endif; ?>
+					</div>
+				</div>
+			</div>
+		</div>
+		<?php
 	}
 
-	protected function get_local_cp_items() {
-		if ( $this->local_cp_items !== false ) return $this->local_cp_items;
-		if ( ! function_exists( 'get_plugins' ) ) require_once ABSPATH . 'wp-admin/includes/plugin.php';
-		
-		$all_plugins = get_plugins();
-		$cp_plugins  = array();
-		foreach ( $all_plugins as $slug => $plugin ) {
-			$cp_plugins[ dirname( $slug ) ] = array(
-				'WP_Slug'   => $slug,
-				'Name'      => $plugin['Name'],
-				'Version'   => $plugin['Version'],
-				'PluginURI' => isset( $plugin['PluginURI'] ) ? $plugin['PluginURI'] : '',
-				'Active'    => is_plugin_active( $slug ),
-			);
+	/**
+	 * Render the correct main button based on status.
+	 */
+	private function render_action_button( string $status, string $slug ): void {
+		switch ( $status ) {
+			case 'active':
+				echo '<button class="button cpdi-button-deactivate" data-slug="' . esc_attr( $slug ) . '">' . esc_html__( 'Deactivate', 'cp-directory-integration' ) . '</button>';
+				break;
+			case 'inactive':
+				echo '<button class="button button-primary cpdi-button-activate" data-slug="' . esc_attr( $slug ) . '">' . esc_html__( 'Activate', 'cp-directory-integration' ) . '</button>';
+				break;
+			default:
+				echo '<button class="button button-primary cpdi-button-install" data-slug="' . esc_attr( $slug ) . '">' . esc_html__( 'Install Now', 'cp-directory-integration' ) . '</button>';
+				break;
 		}
-		$this->local_cp_items = $cp_plugins;
-		return $this->local_cp_items;
 	}
 
-	public function activate_action() {
-		if ( ! isset( $_GET['action'] ) || $_GET['action'] !== 'activate' ) return;
-		if ( ! check_admin_referer( 'activate', 'cpdi' ) || ! current_user_can( 'activate_plugins' ) ) return;
-		if ( ! isset( $_REQUEST['slug'] ) ) return;
+	/**
+	 * The Dialog Drawer shell.
+	 */
+	private function render_details_drawer(): void {
+		?>
+		<dialog id="cpdi-details-drawer" class="cpdi-drawer">
+			<div class="cpdi-drawer-content">
+				<button class="cpdi-drawer-close">&times;</button>
+				<div id="cpdi-drawer-inner">
+					<span class="spinner is-active"></span>
+				</div>
+			</div>
+		</dialog>
+		<?php
+	}
 
-		$local_cp_plugins = $this->get_local_cp_items();
-		$slug = sanitize_key( wp_unslash( $_REQUEST['slug'] ) );
-		
-		if ( array_key_exists( $slug, $local_cp_plugins ) ) {
-			$result = activate_plugin( $local_cp_plugins[ $slug ]['WP_Slug'] );
-			if ( is_wp_error( $result ) ) {
-				$this->add_notice( sprintf( esc_html__( 'Error activating %1$s.', 'classicpress-directory-integration' ), $local_cp_plugins[ $slug ]['Name'] ), true );
-			} else {
-				$this->add_notice( sprintf( esc_html__( '%1$s activated.', 'classicpress-directory-integration' ), $local_cp_plugins[ $slug ]['Name'] ), false );
+	/**
+	 * Helper to get local plugin data for version comparison.
+	 */
+	private function get_local_plugin_data( string $slug ): array|false {
+		$plugins = get_plugins();
+		foreach ( $plugins as $file => $data ) {
+			if ( dirname( $file ) === $slug || $file === $slug . '.php' ) {
+				return $data;
 			}
 		}
-		
-		wp_safe_redirect( $this->get_redirect_url() );
-		exit;
+		return false;
 	}
 
-	public function install_action() {
-		if ( ! isset( $_GET['action'] ) || $_GET['action'] !== 'install' ) return;
-		if ( ! check_admin_referer( 'install', 'cpdi' ) || ! current_user_can( 'install_plugins' ) ) return;
-		if ( ! isset( $_REQUEST['slug'] ) ) return;
-
-		$slug = sanitize_key( wp_unslash( $_REQUEST['slug'] ) );
-		$response = self::do_directory_request( array( 'byslug' => $slug, '_fields' => 'meta,title' ), 'plugins' );
-
-		if ( ! $response['success'] || ! isset( $response['response'][0]['meta']['download_link'] ) ) {
-			$this->add_notice( esc_html__( 'API error: Could not fetch download link.', 'classicpress-directory-integration' ), true );
-			wp_safe_redirect( $this->get_redirect_url() );
-			exit;
+	/**
+	 * Standard WP API shim for CP Directory.
+	 */
+	public function plugin_information( $result, $action, $args ) {
+		if ( 'plugin_information' !== $action || empty( $args->slug ) ) {
+			return $result;
 		}
-
-		$installation_url = $response['response'][0]['meta']['download_link'];
-		$plugin_name      = $response['response'][0]['title']['rendered'];
-
-		$skin     = new PluginInstallSkin( array( 'type' => 'plugin' ) );
-		$upgrader = new \Plugin_Upgrader( $skin );
-		$install  = $upgrader->install( $installation_url );
-
-		if ( $install !== true ) {
-			$this->add_notice( sprintf( esc_html__( 'Error installing %1$s.', 'classicpress-directory-integration' ), $plugin_name ), true );
-		} else {
-			$this->add_notice( sprintf( esc_html__( '%1$s installed.', 'classicpress-directory-integration' ), $plugin_name ), false );
-		}
-
-		wp_safe_redirect( $this->get_redirect_url() );
-		exit;
+		// logic to fetch from CP Directory API and return an object...
+		return $result;
 	}
 }
