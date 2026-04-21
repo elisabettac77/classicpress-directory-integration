@@ -18,9 +18,6 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 abstract class Abstract_Install {
 
-	/**
-	 * Use the Helpers trait for shared API and data logic.
-	 */
 	use Helpers;
 
 	/**
@@ -46,6 +43,12 @@ abstract class Abstract_Install {
 	protected function init(): void {
 		add_action( 'admin_menu', array( $this, 'register_menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
+
+		// 🔥 Critical: action handler (install / activate).
+		add_action( 'admin_init', array( $this, 'handle_actions' ) );
+
+		// AJAX endpoint (optional but supported).
+		add_action( 'wp_ajax_cpdi_fetch_items', array( $this, 'ajax_fetch_items' ) );
 	}
 
 	/**
@@ -54,27 +57,46 @@ abstract class Abstract_Install {
 	abstract public function register_menu(): void;
 
 	/**
+	 * Get local installed items (plugins/themes).
+	 *
+	 * @return array
+	 */
+	abstract protected function get_local_items(): array;
+
+	/**
+	 * Install item.
+	 */
+	abstract protected function install_action( string $slug ): void;
+
+	/**
+	 * Activate item.
+	 */
+	abstract protected function activate_action( string $slug ): void;
+
+	/**
+	 * Normalize slug (plugin/theme specific).
+	 */
+	abstract protected function normalize_slug( string $raw ): string;
+
+	/**
 	 * Enqueue CSS and JS.
 	 */
 	public function enqueue_assets( string $hook ): void {
-		// Only load on the specific integration pages.
 		if ( strpos( $hook, 'cp-directory-integration' ) === false ) {
 			return;
 		}
 
-		// Fixed: Added backslash to global constants
 		wp_enqueue_style(
 			'cpdi-admin-style',
 			\CPDI_URL . 'assets/css/directory-integration.css',
 			array(),
-			\CPDI_VERSION 
+			\CPDI_VERSION
 		);
 
-		// Fixed: Added backslash to global constants
 		wp_enqueue_script(
 			'cpdi-admin-script',
 			\CPDI_URL . 'assets/js/directory-integration.js',
-			array(), // Vanilla JS
+			array(),
 			\CPDI_VERSION,
 			true
 		);
@@ -86,18 +108,91 @@ abstract class Abstract_Install {
 				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
 				'nonce'   => wp_create_nonce( 'cpdi_ajax_nonce' ),
 				'type'    => $this->type,
-				'strings' => array(
-					'installing'        => __( 'Installing...', 'classicpress-directory-integration' ),
-					'installing_parent' => __( 'Installing Parent...', 'classicpress-directory-integration' ),
-					'installed'         => __( 'Installed!', 'classicpress-directory-integration' ),
-					'activate'          => __( 'Activate', 'classicpress-directory-integration' ),
-				)
 			)
 		);
 	}
 
 	/**
-	 * Main entry point for the Admin Page UI.
+	 * Handle install/activate actions.
+	 */
+	public function handle_actions(): void {
+		if ( ! isset( $_GET['cpdi_action'], $_GET['slug'], $_GET['_wpnonce'] ) ) {
+			return;
+		}
+
+		$action = sanitize_key( wp_unslash( $_GET['cpdi_action'] ) );
+		$slug   = sanitize_text_field( wp_unslash( $_GET['slug'] ) );
+		$nonce  = wp_unslash( $_GET['_wpnonce'] );
+
+		if ( ! wp_verify_nonce( $nonce, 'cpdi_action' ) ) {
+			return;
+		}
+
+		switch ( $action ) {
+			case 'install':
+				$this->install_action( $slug );
+				break;
+
+			case 'activate':
+				$this->activate_action( $slug );
+				break;
+		}
+
+		// Redirect to avoid resubmission.
+		wp_safe_redirect( remove_query_arg( array( 'cpdi_action', 'slug', '_wpnonce' ) ) );
+		exit;
+	}
+
+	/**
+	 * Fetch and prepare items.
+	 *
+	 * @return array
+	 */
+	protected function get_items(): array {
+		$args = array(
+			'per_page' => 20,
+		);
+
+		$response = $this->do_directory_request( $args, $this->type );
+
+		if ( empty( $response['success'] ) ) {
+			return array();
+		}
+
+		$remote = $response['response'];
+		$local  = $this->get_local_items();
+
+		$items = array();
+
+		foreach ( $remote as $item ) {
+			if ( empty( $item['meta']['slug'] ) ) {
+				continue;
+			}
+
+			$slug = $this->normalize_slug( $item['meta']['slug'] );
+
+			$items[] = array(
+				'slug'        => $slug,
+				'title'       => $item['title']['rendered'] ?? '',
+				'description' => $item['excerpt']['rendered'] ?? '',
+				'installed'   => isset( $local[ $slug ] ),
+			);
+		}
+
+		return $items;
+	}
+
+	/**
+	 * AJAX: fetch items.
+	 */
+	public function ajax_fetch_items(): void {
+		check_ajax_referer( 'cpdi_ajax_nonce', 'nonce' );
+
+		wp_send_json_success( $this->get_items() );
+	}
+
+	/**
+	 * Render the page.
 	 */
 	public function render_menu(): void {
 		?>
@@ -105,52 +200,56 @@ abstract class Abstract_Install {
 			<h1 class="wp-heading-inline">
 				<?php echo esc_html( get_admin_page_title() ); ?>
 			</h1>
+
 			<hr class="wp-header-end">
 
-			<div class="cpdi-toolbar">
-				<form id="cpdi-search-form" class="search-form">
-					<label class="screen-reader-text" for="cpdi-search-input">
-						<?php esc_html_e( 'Search Directory...', 'classicpress-directory-integration' ); ?>
-					</label>
-					<select id="cpdi-search-type">
-						<option value="keyword"><?php esc_html_e( 'Keyword', 'classicpress-directory-integration' ); ?></option>
-						<option value="author"><?php esc_html_e( 'Author', 'classicpress-directory-integration' ); ?></option>
-						<option value="tag"><?php esc_html_e( 'Tag/Category', 'classicpress-directory-integration' ); ?></option>
-						<option value="name"><?php esc_html_e( 'Name', 'classicpress-directory-integration' ); ?></option>
-					</select>
-					<input type="search" id="cpdi-search-input" class="wp-filter-search" placeholder="<?php esc_attr_e( 'Search...', 'classicpress-directory-integration' ); ?>">
-					<input type="submit" class="button" value="<?php esc_attr_e( 'Search', 'classicpress-directory-integration' ); ?>">
-				</form>
+			<div id="cpdi-directory-list" class="cpdi-card-grid">
+				<?php $this->render_items( $this->get_items() ); ?>
 			</div>
-
-			<div id="cpdi-directory-list" class="cpdi-card-grid" data-page="1">
-				<?php $this->render_content(); ?>
-			</div>
-
-			<div id="cpdi-loader" style="display:none; text-align:center; padding: 20px;">
-				<span class="spinner is-active" style="float:none;"></span>
-			</div>
-			
-			<button id="cpdi-back-to-top" title="<?php esc_attr_e( 'Back to top', 'classicpress-directory-integration' ); ?>">
-				<span class="dashicons dashicons-arrow-up-alt2"></span>
-			</button>
 		</div>
 		<?php
 	}
 
 	/**
-	 * Renders the actual items (Plugins or Themes).
-	 * Must be implemented by child classes.
+	 * Render items (can be overridden).
+	 *
+	 * @param array $items Items.
 	 */
-	abstract protected function render_content(): void;
+	protected function render_items( array $items ): void {
+		foreach ( $items as $item ) {
+			$this->render_card( $item );
+		}
+	}
 
 	/**
-	 * Sanitize arguments for API requests.
+	 * Render a single card.
 	 *
-	 * @param array $args Arguments to sanitize.
-	 * @return array
+	 * @param array $item Item data.
 	 */
-	protected function sanitize_args( array $args ): array {
-		return array_map( 'sanitize_text_field', $args );
+	protected function render_card( array $item ): void {
+		$action = $item['installed'] ? 'activate' : 'install';
+
+		$url = wp_nonce_url(
+			add_query_arg(
+				array(
+					'cpdi_action' => $action,
+					'slug'        => $item['slug'],
+				)
+			),
+			'cpdi_action'
+		);
+		?>
+		<div class="cpdi-card">
+			<h2><?php echo esc_html( wp_strip_all_tags( $item['title'] ) ); ?></h2>
+
+			<div class="cpdi-description">
+				<?php echo wp_kses_post( $item['description'] ); ?>
+			</div>
+
+			<a href="<?php echo esc_url( $url ); ?>" class="button">
+				<?php echo esc_html( ucfirst( $action ) ); ?>
+			</a>
+		</div>
+		<?php
 	}
 }
