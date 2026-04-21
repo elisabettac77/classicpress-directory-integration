@@ -71,7 +71,7 @@ abstract class Abstract_Install {
 
 		wp_enqueue_script(
 			'cpdi-admin-script',
-			CPDI_URL . 'assets/js/directory-integration.js',
+			\CPDI_URL . 'assets/js/directory-integration.js',
 			array(), // Removed jquery dependency for Vanilla JS
 			CPDI_VERSION,
 			true
