@@ -72,7 +72,7 @@ abstract class Abstract_Install {
 		wp_enqueue_script(
 			'cpdi-admin-script',
 			CPDI_URL . 'assets/js/directory-integration.js',
-			array( 'jquery', 'wp-util' ),
+			array(), // Removed jquery dependency for Vanilla JS
 			CPDI_VERSION,
 			true
 		);
@@ -84,13 +84,18 @@ abstract class Abstract_Install {
 				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
 				'nonce'   => wp_create_nonce( 'cpdi_ajax_nonce' ),
 				'type'    => $this->type,
+				'strings' => array(
+					'installing'        => __( 'Installing...', 'classicpress-directory-integration' ),
+					'installing_parent' => __( 'Installing Parent...', 'classicpress-directory-integration' ),
+					'installed'         => __( 'Installed!', 'classicpress-directory-integration' ),
+					'activate'          => __( 'Activate', 'classicpress-directory-integration' ),
+				)
 			)
 		);
 	}
 
 	/**
 	 * Main entry point for the Admin Page UI.
-	 * This fixes the missing method issue.
 	 */
 	public function render_menu(): void {
 		?>
@@ -101,29 +106,30 @@ abstract class Abstract_Install {
 			<hr class="wp-header-end">
 
 			<div class="cpdi-toolbar">
-				<div class="search-form">
+				<form id="cpdi-search-form" class="search-form">
 					<label class="screen-reader-text" for="cpdi-search-input">
-						<?php esc_html_e( 'Search Directory...', 'cp-directory-integration' ); ?>
+						<?php esc_html_e( 'Search Directory...', 'classicpress-directory-integration' ); ?>
 					</label>
 					<select id="cpdi-search-type">
-						<option value="keyword"><?php esc_html_e( 'Keyword', 'cp-directory-integration' ); ?></option>
-   						<option value="author"><?php esc_html_e( 'Author', 'cp-directory-integration' ); ?></option>
-    					<option value="tag"><?php esc_html_e( 'Tag/Category', 'cp-directory-integration' ); ?></option>
-    					<option value="name"><?php esc_html_e( 'Name', 'cp-directory-integration' ); ?></option>
+						<option value="keyword"><?php esc_html_e( 'Keyword', 'classicpress-directory-integration' ); ?></option>
+						<option value="author"><?php esc_html_e( 'Author', 'classicpress-directory-integration' ); ?></option>
+						<option value="tag"><?php esc_html_e( 'Tag/Category', 'classicpress-directory-integration' ); ?></option>
+						<option value="name"><?php esc_html_e( 'Name', 'classicpress-directory-integration' ); ?></option>
 					</select>
-					<input type="search" id="cpdi-search-input" class="wp-filter-search" placeholder="<?php esc_attr_e( 'Search...', 'cp-directory-integration' ); ?>">
-				</div>
+					<input type="search" id="cpdi-search-input" class="wp-filter-search" placeholder="<?php esc_attr_e( 'Search...', 'classicpress-directory-integration' ); ?>">
+					<input type="submit" class="button" value="<?php esc_attr_e( 'Search', 'classicpress-directory-integration' ); ?>">
+				</form>
 			</div>
 
 			<div id="cpdi-directory-list" class="cpdi-card-grid" data-page="1">
 				<?php $this->render_content(); ?>
 			</div>
 
-			<div id="cpdi-loader" style="display:none;">
-				<span class="spinner is-active"></span>
+			<div id="cpdi-loader" style="display:none; text-align:center; padding: 20px;">
+				<span class="spinner is-active" style="float:none;"></span>
 			</div>
 			
-			<button id="cpdi-back-to-top" title="<?php esc_attr_e( 'Back to top', 'cp-directory-integration' ); ?>">
+			<button id="cpdi-back-to-top" title="<?php esc_attr_e( 'Back to top', 'classicpress-directory-integration' ); ?>">
 				<span class="dashicons dashicons-arrow-up-alt2"></span>
 			</button>
 		</div>
