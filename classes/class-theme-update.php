@@ -1,71 +1,80 @@
 <?php
-namespace ClassicPress\Directory;
+/**
+ * Theme Update Class
+ *
+ * @package ClassicPress\Directory\Integration
+ * @since   1.1.0
+ */
 
-class ThemeUpdate extends Abstract_Update {
+namespace ClassicPress\Directory\Integration;
 
-	public function __construct() {
-		$this->type = 'themes';
-		parent::__construct();
-	}
+// Exit if accessed directly.
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
 
-	protected function get_cp_items() {
-		if ( $this->cp_items !== false ) { return $this->cp_items; }
+/**
+ * Handles update logic for ClassicPress Directory themes.
+ */
+class Theme_Update extends Abstract_Update {
 
-		$all_themes = wp_get_themes();
-		$cp_themes  = array();
-		foreach ( $all_themes as $slug => $theme ) {
-			if ( ! $theme->display( 'UpdateURI' ) ) { continue; }
-			if ( strpos( $theme->display( 'UpdateURI' ), \CLASSICPRESS_DIRECTORY_INTEGRATION_URL ) !== 0 ) { continue; }
+	/**
+	 * Set the type for the abstract parent.
+	 *
+	 * @var string
+	 */
+	protected string $type = 'themes';
 
-			$cp_themes[ $slug ] = array(
-				'WPSlug'      => $slug,
-				'Version'     => $theme->display( 'Version' ), // BUGFIX: Was previously UpdateURI
-				'RequiresPHP' => $theme->display( 'RequiresPHP' ),
-				'RequiresCP'  => $theme->display( 'RequiresCP' ),
-				'PluginURI'   => $theme->display( 'ThemeURI' ), // Map ThemeURI to PluginURI format internally
-			);
+	/**
+	 * Identify themes installed from the CP Directory.
+	 *
+	 * @return array List of themes using the CP Directory Update URI.
+	 */
+	protected function get_cp_items(): array {
+		if ( false !== $this->cp_items ) {
+			return $this->cp_items;
 		}
 
-		$this->cp_items = $cp_themes;
-		return $this->cp_items;
-	}
+		$all_themes     = wp_get_themes();
+		$this->cp_items = array();
+		$directory_host = wp_parse_url( \CLASSICPRESS_DIRECTORY_INTEGRATION_URL, PHP_URL_HOST );
 
-	public function update_uri_filter( $update, $theme_data, $theme_stylesheet, $locales ) {
-		if ( preg_match( '/themes\?byslug=(.*)/', $theme_data['UpdateURI'], $matches ) !== 1 ) { return false; }
-		if ( ! isset( $matches[1] ) || $theme_stylesheet !== $matches[1] ) { return false; }
+		foreach ( $all_themes as $slug => $theme ) {
+			$update_uri = $theme->get( 'Update URI' );
 
-		$slug   = $matches[1];
-		$themes = $this->get_cp_items();
-		if ( ! array_key_exists( $slug, $themes ) ) { return false; }
-
-		$dir_data = $this->get_directory_data();
-		if ( ! array_key_exists( $slug, $dir_data ) ) { return false; }
-
-		$theme = $themes[ $slug ];
-		$data  = $dir_data[ $slug ];
-
-		if ( version_compare( $theme['Version'], $data['Version'] ) >= 0 ) { return false; }
-		if ( version_compare( classicpress_version(), $data['RequiresCP'] ) === -1 ) { return false; }
-		if ( version_compare( phpversion(), $data['RequiresPHP'] ) === -1 ) { return false; }
-
-		// NEW: Child Theme Update API Check
-		if ( ! empty( $data['ParentSlug'] ) ) {
-			$parent_slug  = $data['ParentSlug'];
-			$local_themes = wp_get_themes();
-			
-			// If it's a child theme, ensure the parent theme actually exists before offering the update
-			if ( ! array_key_exists( $parent_slug, $local_themes ) ) {
-				return false; // Prevent update if parent dependency is missing
+			if ( ! empty( $update_uri ) && str_contains( $update_uri, $directory_host ) ) {
+				$this->cp_items[ $slug ] = array(
+					'Version' => $theme->get( 'Version' ),
+					'Name'    => $theme->get( 'Name' ),
+				);
 			}
 		}
 
-		return array(
-			'slug'        => $theme_stylesheet,
-			'version'     => $data['Version'],
-			'package'     => $data['Download'],
-			'requiresphp' => $data['RequiresPHP'],
-			'requirescp'  => $data['RequiresCP'],
-			'url'         => 'https://' . wp_parse_url( \CLASSICPRESS_DIRECTORY_INTEGRATION_URL, PHP_URL_HOST ) . '/themes/' . $theme_stylesheet,
-		);
+		return $this->cp_items;
+	}
+
+	/**
+	 * Filter the update response for CP Directory themes.
+	 */
+	public function update_uri_filter( array|false $update, array $item_data, string $item_file, array $locales ): array|false {
+		$slug = $item_file; // In themes, $item_file is usually the slug.
+		$data = $this->get_directory_data();
+
+		if ( ! isset( $data[ $slug ] ) ) {
+			return $update;
+		}
+
+		$remote = $data[ $slug ];
+
+		if ( version_compare( $item_data['Version'], $remote['Version'], '<' ) ) {
+			return array(
+				'version'     => $remote['Version'],
+				'package'     => $remote['Download'],
+				'requires_php' => $remote['RequiresPHP'],
+				'requires_cp'  => $remote['RequiresCP'],
+			);
+		}
+
+		return $update;
 	}
 }
