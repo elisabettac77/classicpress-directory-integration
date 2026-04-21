@@ -42,7 +42,9 @@ class Theme_Install extends Abstract_Install {
 	 * Implementation of the grid content.
 	 */
 	protected function render_content(): void {
-		// 1. Get Search Parameters. Unslash before sanitizing.
+		// 1. Get Search Parameters. 
+		// We use wp_unslash and sanitize_text_field. 
+		// Nonce verification is skipped here as this is a read-only search display.
 		$search_query = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : '';
 		$search_type  = isset( $_GET['stype'] ) ? sanitize_text_field( wp_unslash( $_GET['stype'] ) ) : 'keyword';
 		
@@ -51,7 +53,7 @@ class Theme_Install extends Abstract_Install {
 		if ( ! empty( $search_query ) ) {
 			$taxonomy = $this->get_taxonomy_key( 'theme' ); // Returns 'tag'
 			$param    = ( 'tag' === $search_type ) ? $taxonomy : $search_type;
-			// Use rawurlencode for RFC 3986 compliance.
+			// rawurlencode is preferred over urlencode for modern PHP/APIs.
 			$endpoint .= "&{$param}=" . rawurlencode( $search_query );
 		}
 
@@ -75,8 +77,7 @@ class Theme_Install extends Abstract_Install {
 
 	/**
 	 * Render an individual theme card.
-	 *
-	 * @param array $item Theme data from API.
+	 * * @param array $item Theme data.
 	 */
 	private function render_theme_card( array $item ): void {
 		$slug        = $item['slug'] ?? '';
@@ -100,7 +101,7 @@ class Theme_Install extends Abstract_Install {
 						<p class="cpdi-child-theme-tag">
 							<span class="dashicons dashicons-media-code"></span> 
 							<?php 
-							/* translators: %s: Parent theme slug */
+							/* translators: %s: theme slug */
 							printf( esc_html__( 'Child of %s', 'classicpress-directory-integration' ), esc_html( $parent_slug ) ); 
 							?>
 						</p>
@@ -136,7 +137,6 @@ class Theme_Install extends Abstract_Install {
 	private function render_action_button( string $status, string $slug ): void {
 		switch ( $status ) {
 			case 'active':
-				// Themes use "Customize" instead of "Deactivate".
 				$customize_url = admin_url( 'customize.php?theme=' . rawurlencode( $slug ) );
 				echo '<a href="' . esc_url( $customize_url ) . '" class="button">' . esc_html__( 'Customize', 'classicpress-directory-integration' ) . '</a>';
 				break;
@@ -150,16 +150,14 @@ class Theme_Install extends Abstract_Install {
 	}
 
 	/**
-	 * The Dialog Drawer shell.
+	 * Render the details drawer.
 	 */
 	private function render_details_drawer(): void {
 		?>
 		<dialog id="cpdi-details-drawer" class="cpdi-drawer">
 			<div class="cpdi-drawer-content">
 				<button class="cpdi-drawer-close" aria-label="<?php esc_attr_e( 'Close', 'classicpress-directory-integration' ); ?>">&times;</button>
-				<div id="cpdi-drawer-inner">
-					<span class="spinner is-active"></span>
-				</div>
+				<div id="cpdi-drawer-inner"></div>
 			</div>
 		</dialog>
 		<?php
