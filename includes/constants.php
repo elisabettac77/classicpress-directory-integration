@@ -1,13 +1,7 @@
 <?php
-
 /**
  * -----------------------------------------------------------------------------
  * Purpose: Declare non namespaced constants for this plugin.
- * -----------------------------------------------------------------------------
- * This is free software released under the terms of the General Public License,
- * version 2, or later. It is distributed WITHOUT ANY WARRANTY; without even the
- * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. Full
- * text of the license is available at https://www.gnu.org/licenses/gpl-2.0.txt.
  * -----------------------------------------------------------------------------
  */
 
@@ -16,4 +10,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 	die();
 }
 
+// The API Endpoint
 define( 'CLASSICPRESS_DIRECTORY_INTEGRATION_URL', 'https://directory.classicpress.net/wp-json/wp/v2/' );
+
+// Missing Constant: The URL to the plugin folder (required for CSS/JS enqueuing)
+define( 'CPDI_URL', plugin_dir_url( dirname( __FILE__ ) ) );
+
+// Missing Constant: The version of the plugin (required for cache busting assets)
+define( 'CPDI_VERSION', '1.1.7' );
