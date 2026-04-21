@@ -42,10 +42,10 @@ class Theme_Install extends Abstract_Install {
 	 * Implementation of the grid content.
 	 */
 	protected function render_content(): void {
-		// 1. Get Search Parameters. 
-		// We use wp_unslash and sanitize_text_field. 
-		// Nonce verification is skipped here as this is a read-only search display.
+		// 1. Get Search Parameters.
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$search_query = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$search_type  = isset( $_GET['stype'] ) ? sanitize_text_field( wp_unslash( $_GET['stype'] ) ) : 'keyword';
 		
 		$endpoint = \CLASSICPRESS_DIRECTORY_INTEGRATION_URL . 'themes?per_page=20';
@@ -77,7 +77,8 @@ class Theme_Install extends Abstract_Install {
 
 	/**
 	 * Render an individual theme card.
-	 * * @param array $item Theme data.
+	 *
+	 * @param array $item Theme data.
 	 */
 	private function render_theme_card( array $item ): void {
 		$slug        = $item['slug'] ?? '';
