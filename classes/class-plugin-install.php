@@ -45,8 +45,10 @@ class Plugin_Install extends Abstract_Install {
 	 * Implementation of the grid content.
 	 */
 	protected function render_content(): void {
-		// 1. Get Search Parameters. Unslash before sanitizing.
+		// 1. Get Search Parameters.
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$search_query = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		$search_type  = isset( $_GET['stype'] ) ? sanitize_text_field( wp_unslash( $_GET['stype'] ) ) : 'keyword';
 		
 		// 2. Build API Endpoint.
@@ -180,7 +182,9 @@ class Plugin_Install extends Abstract_Install {
 
 	/**
 	 * Helper to get local plugin data for version comparison.
-	 * * @return array|bool
+	 *
+	 * @param string $slug Plugin slug.
+	 * @return array|bool
 	 */
 	private function get_local_plugin_data( string $slug ) {
 		$plugins = get_plugins();
