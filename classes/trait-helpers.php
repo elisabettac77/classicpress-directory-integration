@@ -251,4 +251,104 @@ trait Helpers {
 		</div>
 		<?php
 	}
+
+	/**
+	 * AJAX Handler for installing a plugin or theme.
+	 * This is called by the Vanilla JS runInstall function.
+	 */
+	public function ajax_install_item(): void {
+		check_ajax_referer( 'cpdi_ajax_nonce' );
+
+		if ( ! current_user_can( 'install_plugins' ) && ! current_user_can( 'install_themes' ) ) {
+			wp_send_json_error( [ 'message' => __( 'Permission denied.', 'cp-directory-integration' ) ] );
+		}
+
+		$slug = sanitize_text_field( $_POST['slug'] ?? '' );
+		$type = sanitize_text_field( $_POST['type'] ?? 'plugin' );
+
+		if ( empty( $slug ) ) {
+			wp_send_json_error( [ 'message' => __( 'Missing slug.', 'cp-directory-integration' ) ] );
+		}
+
+		// 1. Fetch the download URL from the Directory
+		$endpoint = \CLASSICPRESS_DIRECTORY_INTEGRATION_URL . ( 'plugin' === $type ? 'plugins' : 'themes' );
+		$endpoint = add_query_arg( 'slug', $slug, $endpoint );
+		$data     = $this->fetch_directory_data( $endpoint );
+		$item     = ( is_array( $data ) && ! empty( $data ) ) ? $data[0] : null;
+
+		if ( ! $item || empty( $item['meta']['download_link'] ) ) {
+			wp_send_json_error( [ 'message' => __( 'Download link not found.', 'cp-directory-integration' ) ] );
+		}
+
+		$download_url = $item['meta']['download_link'];
+
+		// 2. Perform the Installation
+		$result = $this->run_silent_install( $download_url, $type );
+
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( [ 'message' => $result->get_error_message() ] );
+		}
+
+		wp_send_json_success( [ 'message' => __( 'Installation successful.', 'cp-directory-integration' ) ] );
+	}
+
+	/**
+	 * Uses WP Core Upgraders to install the item without outputting HTML.
+	 */
+	private function run_silent_install( string $url, string $type ) {
+		// Required for filesystem classes
+		include_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+		include_once ABSPATH . 'wp-admin/includes/file.php';
+
+		$skin     = new CPDI_Silent_Skin();
+		$upgrader = ( 'plugin' === $type ) ? new \Plugin_Upgrader( $skin ) : new \Theme_Upgrader( $skin );
+
+		$install_result = $upgrader->install( $url );
+
+		if ( true !== $install_result && ! is_wp_error( $install_result ) ) {
+			return new \WP_Error( 'install_failed', __( 'Installation failed.', 'cp-directory-integration' ) );
+		}
+
+		return $install_result;
+	}
+
+	/**
+	 * AJAX Handler for activating a plugin or theme.
+	 */
+	public function ajax_activate_item(): void {
+		check_ajax_referer( 'cpdi_ajax_nonce' );
+
+		$slug = sanitize_text_field( $_POST['slug'] ?? '' );
+		$type = sanitize_text_field( $_POST['type'] ?? 'plugin' );
+
+		if ( 'plugin' === $type ) {
+			// Plugins need the path, e.g., slug/slug.php
+			$plugins = get_plugins();
+			foreach ( $plugins as $file => $data ) {
+				if ( dirname( $file ) === $slug || $file === $slug . '.php' ) {
+					$result = activate_plugin( $file );
+					break;
+				}
+			}
+		} else {
+			switch_theme( $slug );
+			$result = null; // switch_theme doesn't return a value
+		}
+
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( [ 'message' => $result->get_error_message() ] );
+		}
+
+		wp_send_json_success();
+	}
+}
+
+/**
+ * Silent Skin for Upgraders
+ * Prevents standard WP output during AJAX installs.
+ */
+class CPDI_Silent_Skin extends \WP_Upgrader_Skin {
+	public function feedback( $string, ...$args ) {} // Do nothing
+	public function header() {}
+	public function footer() {}
 }
