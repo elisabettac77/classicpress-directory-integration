@@ -144,8 +144,11 @@ trait Helpers {
 	 * Register AJAX actions.
 	 */
 	public function register_ajax_handlers(): void {
-		add_action( 'wp_ajax_cpdi_fetch_items', [ $this, 'ajax_fetch_items' ] );
-		add_action( 'wp_ajax_cpdi_get_details', [ $this, 'ajax_get_details' ] );
+    add_action( 'wp_ajax_cpdi_fetch_items', [ $this, 'ajax_fetch_items' ] );
+    add_action( 'wp_ajax_cpdi_get_details', [ $this, 'ajax_get_details' ] );
+    add_action( 'wp_ajax_cpdi_install_item', [ $this, 'ajax_install_item' ] );
+    add_action( 'wp_ajax_cpdi_activate_item', [ $this, 'ajax_activate_item' ] );
+}
 	}
 
 	/**
