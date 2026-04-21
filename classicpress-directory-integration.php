@@ -1,8 +1,16 @@
 <?php
 /**
+ * -----------------------------------------------------------------------------
  * Plugin Name:  ClassicPress Directory Integration
+ * Description:  Install and update plugins and themes from ClassicPress directory.
  * Version:      1.1.7
- * Namespace:    ClassicPress\Directory
+ * Author:       ClassicPress Contributors
+ * Author URI:   https://www.classicpress.net
+ * Text Domain:  classicpress-directory-integration
+ * Domain Path:  /languages
+ * Requires PHP: 7.4
+ * Requires CP:  2.0
+ * -----------------------------------------------------------------------------
  */
 
 namespace ClassicPress\Directory;
