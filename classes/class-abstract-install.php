@@ -62,18 +62,20 @@ abstract class Abstract_Install {
 			return;
 		}
 
+		// Fixed: Added backslash to global constants
 		wp_enqueue_style(
 			'cpdi-admin-style',
-			CPDI_URL . 'assets/css/directory-integration.css',
+			\CPDI_URL . 'assets/css/directory-integration.css',
 			array(),
-			CPDI_VERSION
+			\CPDI_VERSION 
 		);
 
+		// Fixed: Added backslash to global constants
 		wp_enqueue_script(
 			'cpdi-admin-script',
 			\CPDI_URL . 'assets/js/directory-integration.js',
-			array(), // Removed jquery dependency for Vanilla JS
-			CPDI_VERSION,
+			array(), // Vanilla JS
+			\CPDI_VERSION,
 			true
 		);
 
