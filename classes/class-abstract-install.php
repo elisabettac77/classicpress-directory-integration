@@ -1,274 +1,142 @@
 <?php
 /**
- * Abstract installer for ClassicPress Directory Integration.
+ * Abstract Install Class
  *
- * @package ClassicPress\Directory
+ * @package ClassicPress\Directory\Integration
+ * @since   1.1.0
  */
 
-namespace ClassicPress;
+namespace ClassicPress\Directory\Integration;
 
-use ClassicPress\Directory\Helpers;
-
+// Exit if accessed directly.
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
-
 /**
- * Abstract class for install screens.
+ * Abstract class for managing the directory installation UI.
  */
-abstract class AbstractInstall {
+abstract class Abstract_Install {
 
+	/**
+	 * Use the Helpers trait for shared API and data logic.
+	 */
 	use Helpers;
 
 	/**
-	 * Cached local items.
-	 *
-	 * @var array|false
-	 */
-	protected $local_cp_items = false;
-
-	/**
-	 * Admin page hook.
-	 *
-	 * @var string|null
-	 */
-	protected $page = null;
-
-	/**
-	 * Type (plugins|themes).
+	 * Type of installation (plugin or theme).
 	 *
 	 * @var string
 	 */
-	protected $type = '';
+	protected string $type;
 
 	/**
 	 * Constructor.
+	 *
+	 * @param string $type The type of installation ('plugin' or 'theme').
 	 */
-	public function __construct() {
-		$menu_hook = is_multisite() ? 'network_admin_menu' : 'admin_menu';
+	public function __construct( string $type ) {
+		$this->type = $type;
+		$this->init();
+	}
 
-		add_action( $menu_hook, array( $this, 'create_menu' ), 100 );
-		add_action( $menu_hook, array( $this, 'rename_menu' ), 101 );
-
+	/**
+	 * Initialize hooks.
+	 */
+	protected function init(): void {
+		add_action( 'admin_menu', array( $this, 'register_menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 	}
 
 	/**
-	 * Create menu entry.
+	 * Register the admin menu page.
 	 */
-	abstract public function create_menu();
+	abstract public function register_menu(): void;
 
 	/**
-	 * Rename existing menu.
+	 * Enqueue CSS and JS.
 	 */
-	abstract public function rename_menu();
-
-	/**
-	 * Get installed items.
-	 *
-	 * @return array
-	 */
-	abstract protected function get_local_cp_items();
-
-	/**
-	 * Handle activation.
-	 */
-	abstract public function activate_action();
-
-	/**
-	 * Handle installation.
-	 */
-	abstract public function install_action();
-
-	/**
-	 * Enqueue scripts and styles.
-	 *
-	 * @param string $hook Hook suffix.
-	 * @return void
-	 */
-	public function enqueue_assets( $hook ) {
-		if ( $this->page !== $hook ) {
+	public function enqueue_assets( string $hook ): void {
+		// Only load on the specific integration pages.
+		if ( strpos( $hook, 'cp-directory-integration' ) === false ) {
 			return;
 		}
 
-		$base_path = plugin_dir_path( dirname( __FILE__ ) );
-
-		$css_file = $base_path . 'styles/directory-integration.css';
-		$js_file  = $base_path . 'scripts/directory-integration.js';
-
-		$css_version = file_exists( $css_file ) ? filemtime( $css_file ) : '1.0.0';
-		$js_version  = file_exists( $js_file ) ? filemtime( $js_file ) : '1.0.0';
-
 		wp_enqueue_style(
-			'cpdi-style',
-			plugins_url( '../styles/directory-integration.css', __FILE__ ),
+			'cpdi-admin-style',
+			CPDI_URL . 'assets/css/directory-integration.css',
 			array(),
-			$css_version
+			CPDI_VERSION
 		);
 
 		wp_enqueue_script(
-			'cpdi-script',
-			plugins_url( '../scripts/directory-integration.js', __FILE__ ),
-			array( 'wp-i18n' ),
-			$js_version,
+			'cpdi-admin-script',
+			CPDI_URL . 'assets/js/directory-integration.js',
+			array( 'jquery', 'wp-util' ),
+			CPDI_VERSION,
 			true
 		);
 
-		wp_set_script_translations(
-			'cpdi-script',
-			'classicpress-directory-integration',
-			$base_path . 'languages'
-		);
-	}
-
-	/**
-	 * Add admin notice.
-	 *
-	 * @param string $message Message.
-	 * @param bool   $is_error Error flag.
-	 * @return void
-	 */
-	protected function add_notice( $message, $is_error = false ) {
-		$key = 'cpdi_notices_' . sanitize_key( $this->type );
-
-		$existing = get_transient( $key );
-		$existing = ( false === $existing ) ? '' : $existing;
-
-		$class = $is_error ? 'notice-error' : 'notice-success';
-
-		$existing .= sprintf(
-			'<div class="notice %1$s is-dismissible"><p>%2$s</p></div>',
-			esc_attr( $class ),
-			esc_html( $message )
-		);
-
-		set_transient( $key, $existing, HOUR_IN_SECONDS );
-	}
-
-	/**
-	 * Output notices.
-	 *
-	 * @return void
-	 */
-	protected function display_notices() {
-		$key     = 'cpdi_notices_' . sanitize_key( $this->type );
-		$content = get_transient( $key );
-
-		if ( false !== $content ) {
-			echo wp_kses_post( $content );
-			delete_transient( $key );
-		}
-	}
-
-	/**
-	 * Get redirect URL.
-	 *
-	 * @return string
-	 */
-	protected function get_redirect_url() {
-		$referer = wp_get_referer();
-
-		if ( empty( $referer ) ) {
-			$base = ( 'themes' === $this->type ) ? 'themes.php' : 'plugins.php';
-			$referer = admin_url( $base );
-		}
-
-		return remove_query_arg(
-			array( 'action', 'slug', 'cpdi', '_wpnonce' ),
-			$referer
-		);
-	}
-
-	/**
-	 * Perform directory request.
-	 *
-	 * @param array  $args Query args.
-	 * @param string $type Type.
-	 * @return array
-	 */
-	public static function do_directory_request( $args, $type ) {
-		$result = array(
-			'success'  => false,
-			'response' => array(),
-		);
-
-		if ( ! in_array( $type, array( 'plugins', 'themes' ), true ) ) {
-			return $result;
-		}
-
-		$endpoint = defined( 'CLASSICPRESS_DIRECTORY_INTEGRATION_URL' )
-			? CLASSICPRESS_DIRECTORY_INTEGRATION_URL . $type
-			: 'https://directory.classicpress.net/wp-json/wp/v2/' . $type;
-
-		$endpoint = add_query_arg(
-			self::sanitize_args( $args ),
-			$endpoint
-		);
-
-		$response = wp_remote_get(
-			$endpoint,
+		wp_localize_script(
+			'cpdi-admin-script',
+			'cpdiData',
 			array(
-				'timeout' => 20,
+				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+				'nonce'   => wp_create_nonce( 'cpdi_ajax_nonce' ),
+				'type'    => $this->type,
 			)
 		);
-
-		if ( is_wp_error( $response ) ) {
-			return $result;
-		}
-
-		if ( 200 !== wp_remote_retrieve_response_code( $response ) ) {
-			return $result;
-		}
-
-		$data = json_decode( wp_remote_retrieve_body( $response ), true );
-
-		if ( ! is_array( $data ) ) {
-			return $result;
-		}
-
-		$result['success']  = true;
-		$result['response'] = $data;
-
-		return $result;
 	}
 
 	/**
-	 * Sanitize API args.
+	 * Main entry point for the Admin Page UI.
+	 * This fixes the missing method issue.
+	 */
+	public function render_menu(): void {
+		?>
+		<div class="wrap cpdi-container">
+			<h1 class="wp-heading-inline">
+				<?php echo esc_html( get_admin_page_title() ); ?>
+			</h1>
+			<hr class="wp-header-end">
+
+			<div class="cpdi-toolbar">
+				<div class="search-form">
+					<label class="screen-reader-text" for="cpdi-search-input">
+						<?php esc_html_e( 'Search Directory...', 'cp-directory-integration' ); ?>
+					</label>
+					<input type="search" id="cpdi-search-input" class="wp-filter-search" placeholder="<?php esc_attr_e( 'Search...', 'cp-directory-integration' ); ?>">
+				</div>
+			</div>
+
+			<div id="cpdi-directory-list" class="cpdi-card-grid" data-page="1">
+				<?php $this->render_content(); ?>
+			</div>
+
+			<div id="cpdi-loader" style="display:none;">
+				<span class="spinner is-active"></span>
+			</div>
+			
+			<button id="cpdi-back-to-top" title="<?php esc_attr_e( 'Back to top', 'cp-directory-integration' ); ?>">
+				<span class="dashicons dashicons-arrow-up-alt2"></span>
+			</button>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Renders the actual items (Plugins or Themes).
+	 * Must be implemented by child classes.
+	 */
+	abstract protected function render_content(): void;
+
+	/**
+	 * Sanitize arguments for API requests.
 	 *
-	 * @param array $args Raw args.
+	 * @param array $args Arguments to sanitize.
 	 * @return array
 	 */
-	public static function sanitize_args( $args ) {
-		$clean = array();
-
-		foreach ( (array) $args as $key => $value ) {
-			$key = preg_replace( '/[^a-zA-Z0-9_]/', '', $key );
-
-			if ( empty( $key ) ) {
-				continue;
-			}
-
-			switch ( $key ) {
-				case 'per_page':
-				case 'page':
-					$clean[ $key ] = (int) $value;
-					break;
-
-				case 'search':
-				case 'category':
-				case 'tag':
-				case 'byslug':
-				case '_fields':
-					$clean[ $key ] = sanitize_text_field( (string) $value );
-					break;
-
-				default:
-					$clean[ $key ] = sanitize_text_field( (string) $value );
-			}
-		}
-
-		return $clean;
+	protected function sanitize_args( array $args ): array {
+		return array_map( 'sanitize_text_field', $args );
 	}
 }
