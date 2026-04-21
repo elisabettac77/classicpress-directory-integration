@@ -1,15 +1,4 @@
 <?php
-
-namespace ClassicPress\Directory;
-
-trait Helpers {
-
-	/**
-	 * Get all substrings within text that are found between two other, specified strings
-	 *
-	 * Avoids parsing HTML with regex
-	 *
-	 * Returns an array<?php
 /**
  * Helpers Trait
  *
@@ -38,7 +27,6 @@ trait Helpers {
 	 */
 	protected function get_item_status( string $slug, string $type ): string {
 		if ( 'plugin' === $type ) {
-			// Find the main file by slug (e.g., 'my-plugin/my-plugin.php').
 			$plugins = get_plugins();
 			foreach ( $plugins as $file => $data ) {
 				if ( dirname( $file ) === $slug || $file === $slug . '.php' ) {
@@ -57,10 +45,6 @@ trait Helpers {
 
 	/**
 	 * Sort API results: Active first, then Inactive, then Not Installed.
-	 *
-	 * @param array  $items The items from the API.
-	 * @param string $type  The type ('plugin' or 'theme').
-	 * @return array Sorted items.
 	 */
 	protected function sort_items_by_status( array $items, string $type ): array {
 		usort( $items, function( $a, $b ) use ( $type ) {
@@ -81,9 +65,6 @@ trait Helpers {
 
 	/**
 	 * Map search taxonomy based on item type.
-	 *
-	 * @param string $type The type ('plugin' or 'theme').
-	 * @return string 'category' for plugins, 'tag' for themes.
 	 */
 	protected function get_taxonomy_key( string $type ): string {
 		return ( 'plugin' === $type ) ? 'category' : 'tag';
@@ -91,13 +72,8 @@ trait Helpers {
 
 	/**
 	 * Generate a placeholder SVG background based on the item slug.
-	 * This prevents layout shift when images are missing.
-	 *
-	 * @param string $slug The item slug.
-	 * @return string Data URI of the SVG.
 	 */
 	protected function get_svg_placeholder( string $slug ): string {
-		// Use the first characters of the slug to generate a consistent "random" color.
 		$hash  = substr( md5( $slug ), 0, 6 );
 		$color = '#' . $hash;
 		
@@ -115,9 +91,6 @@ trait Helpers {
 
 	/**
 	 * Safe API fetcher with error handling.
-	 *
-	 * @param string $endpoint API endpoint.
-	 * @return array|\WP_Error
 	 */
 	protected function fetch_directory_data( string $endpoint ) {
 		$response = wp_remote_get( $endpoint, array( 'user-agent' => classicpress_user_agent( true ) ) );
@@ -133,17 +106,17 @@ trait Helpers {
 
 		return json_decode( wp_remote_retrieve_body( $response ), true );
 	}
-}
-	 *
-	 * See https://stackoverflow.com/a/27078384
+
+	/**
+	 * Get all substrings within text between two specified strings.
 	 */
-	private function get_markdown_contents( $str, $startDelimiter, $endDelimiter ) {
+	private function get_markdown_contents( string $str, string $startDelimiter, string $endDelimiter ): array {
 		$contents             = array();
 		$startDelimiterLength = strlen( $startDelimiter );
 		$endDelimiterLength   = strlen( $endDelimiter );
-		$startFrom            = $contentStart = $contentEnd = 0;
+		$startFrom            = 0;
 
-		while ( $contentStart = strpos( $str, $startDelimiter, $startFrom ) ) { // phpcs:ignore WordPress.CodeAnalysis.AssignmentInCondition.FoundInWhileCondition
+		while ( false !== ( $contentStart = strpos( $str, $startDelimiter, $startFrom ) ) ) {
 			$contentStart += $startDelimiterLength;
 			$contentEnd    = strpos( $str, $endDelimiter, $contentStart );
 			if ( $contentEnd === false ) {
@@ -157,14 +130,125 @@ trait Helpers {
 	}
 
 	/**
-	 * Polyfill for json_validate
-	 * The function is defined only in PHP 8 >= 8.3.0
+	 * Polyfill for json_validate (PHP 8.3+).
 	 */
-	private static function json_validate( $json ) {
+	private static function json_validate( string $json ): bool {
 		if ( function_exists( 'json_validate' ) ) {
-			return json_validate( $json );
+			return \json_validate( $json );
 		}
-		return json_decode( $json ) !== null;
+		json_decode( $json );
+		return json_last_error() === JSON_ERROR_NONE;
 	}
 
+	/**
+	 * Register AJAX actions.
+	 */
+	public function register_ajax_handlers(): void {
+		add_action( 'wp_ajax_cpdi_fetch_items', [ $this, 'ajax_fetch_items' ] );
+		add_action( 'wp_ajax_cpdi_get_details', [ $this, 'ajax_get_details' ] );
+	}
+
+	/**
+	 * AJAX Handler for fetching and searching items.
+	 */
+	public function ajax_fetch_items(): void {
+		check_ajax_referer( 'cpdi_ajax_nonce' );
+
+		$type   = sanitize_text_field( $_GET['type'] ?? 'plugin' );
+		$page   = absint( $_GET['page'] ?? 1 );
+		$search = sanitize_text_field( $_GET['s'] ?? '' );
+		$stype  = sanitize_text_field( $_GET['stype'] ?? 'keyword' );
+
+		$endpoint = \CLASSICPRESS_DIRECTORY_INTEGRATION_URL . ( 'plugin' === $type ? 'plugins' : 'themes' );
+		$endpoint = add_query_arg( [
+			'per_page' => 20,
+			'page'     => $page,
+			'_fields'  => 'id,slug,title,meta,content'
+		], $endpoint );
+
+		if ( ! empty( $search ) ) {
+			$tax_key  = $this->get_taxonomy_key( $type );
+			$param    = ( 'category' === $stype || 'tag' === $stype ) ? $tax_key : $stype;
+			$endpoint = add_query_arg( $param, urlencode( $search ), $endpoint );
+		}
+
+		$items = $this->fetch_directory_data( $endpoint );
+
+		if ( is_wp_error( $items ) ) {
+			wp_send_json_error( [ 'message' => $items->get_error_message() ] );
+		}
+
+		if ( 1 === $page ) {
+			$items = $this->sort_items_by_status( $items, $type );
+		}
+
+		ob_start();
+		foreach ( $items as $item ) {
+			if ( 'plugin' === $type ) {
+				$this->render_plugin_card( $item ); 
+			} else {
+				$this->render_theme_card( $item );
+			}
+		}
+		$html = ob_get_clean();
+
+		wp_send_json_success( [
+			'html' => $html,
+			'next_page' => count( $items ) === 20 ? $page + 1 : false
+		] );
+	}
+
+	/**
+	 * AJAX Handler for the Details Drawer.
+	 */
+	public function ajax_get_details(): void {
+		check_ajax_referer( 'cpdi_ajax_nonce' );
+
+		$slug = sanitize_text_field( $_GET['slug'] ?? '' );
+		$type = sanitize_text_field( $_GET['type'] ?? 'plugin' );
+
+		if ( empty( $slug ) ) {
+			wp_send_json_error( [ 'message' => 'Missing slug.' ] );
+		}
+
+		$endpoint = \CLASSICPRESS_DIRECTORY_INTEGRATION_URL . ( 'plugin' === $type ? 'plugins' : 'themes' );
+		$endpoint = add_query_arg( 'slug', $slug, $endpoint );
+
+		$data = $this->fetch_directory_data( $endpoint );
+		$item = ( is_array( $data ) && ! empty( $data ) ) ? $data[0] : null;
+
+		if ( ! $item ) {
+			wp_send_json_error( [ 'message' => 'Item not found.' ] );
+		}
+
+		ob_start();
+		$this->render_drawer_content( $item, $type );
+		$html = ob_get_clean();
+
+		wp_send_json_success( [ 'html' => $html ] );
+	}
+
+	/**
+	 * Renders the internal content of the Drawer.
+	 */
+	private function render_drawer_content( array $item, string $type ): void {
+		$status = $this->get_item_status( $item['slug'], $type );
+		?>
+		<div class="cpdi-drawer-header">
+			<h2><?php echo esc_html( $item['title']['rendered'] ); ?></h2>
+		</div>
+		<div class="cpdi-drawer-body">
+			<div class="cpdi-drawer-meta">
+				<strong><?php esc_html_e( 'Version:', 'cp-directory-integration' ); ?></strong> <?php echo esc_html( $item['meta']['current_version'] ?? 'n/a' ); ?><br>
+				<strong><?php esc_html_e( 'Author:', 'cp-directory-integration' ); ?></strong> <?php echo esc_html( $item['meta']['author'] ?? 'n/a' ); ?>
+			</div>
+			<div class="cpdi-drawer-description">
+				<?php echo wp_kses_post( $item['content']['rendered'] ); ?>
+			</div>
+		</div>
+		<div class="cpdi-drawer-footer">
+			<?php $this->render_action_button( $status, $item['slug'] ); ?>
+		</div>
+		<?php
+	}
 }
