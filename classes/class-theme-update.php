@@ -14,67 +14,73 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Handles update logic for ClassicPress Directory themes.
+ * Handles checking and injecting theme updates from the CP Directory.
  */
-class Theme_Update extends Abstract_Update {
+class Theme_Update {
 
 	/**
-	 * Set the type for the abstract parent.
-	 *
-	 * @var string
+	 * Constructor.
 	 */
-	protected string $type = 'themes';
-
-	/**
-	 * Identify themes installed from the CP Directory.
-	 *
-	 * @return array List of themes using the CP Directory Update URI.
-	 */
-	protected function get_cp_items(): array {
-		if ( false !== $this->cp_items ) {
-			return $this->cp_items;
-		}
-
-		$all_themes     = wp_get_themes();
-		$this->cp_items = array();
-		$directory_host = wp_parse_url( \CLASSICPRESS_DIRECTORY_INTEGRATION_URL, PHP_URL_HOST );
-
-		foreach ( $all_themes as $slug => $theme ) {
-			$update_uri = $theme->get( 'Update URI' );
-
-			if ( ! empty( $update_uri ) && str_contains( $update_uri, $directory_host ) ) {
-				$this->cp_items[ $slug ] = array(
-					'Version' => $theme->get( 'Version' ),
-					'Name'    => $theme->get( 'Name' ),
-				);
-			}
-		}
-
-		return $this->cp_items;
+	public function __construct() {
+		add_filter( 'site_transient_update_themes', array( $this, 'check_for_updates' ) );
+		add_filter( 'pre_set_site_transient_update_themes', array( $this, 'check_for_updates' ) );
 	}
 
 	/**
-	 * Filter the update response for CP Directory themes.
+	 * Check CP Directory for theme updates.
+	 * * @param object $transient The update transient.
+	 * @return object
 	 */
-	public function update_uri_filter( array|false $update, array $item_data, string $item_file, array $locales ): array|false {
-		$slug = $item_file; // In themes, $item_file is usually the slug.
-		$data = $this->get_directory_data();
-
-		if ( ! isset( $data[ $slug ] ) ) {
-			return $update;
+	public function check_for_updates( $transient ) {
+		if ( empty( $transient->checked ) ) {
+			return $transient;
 		}
 
-		$remote = $data[ $slug ];
+		foreach ( $transient->checked as $slug => $version ) {
+			// Only check themes that we know belong to the CP Directory.
+			// (You might want to add a check here to skip core themes like twentyten).
+			
+			$remote = $this->get_remote_theme_data( $slug );
 
-		if ( version_compare( $item_data['Version'], $remote['Version'], '<' ) ) {
-			return array(
-				'version'     => $remote['Version'],
-				'package'     => $remote['Download'],
-				'requires_php' => $remote['RequiresPHP'],
-				'requires_cp'  => $remote['RequiresCP'],
-			);
+			if ( $remote && version_compare( $version, $remote['new_version'], '<' ) ) {
+				$transient->response[ $slug ] = $remote;
+			}
 		}
 
-		return $update;
+		return $transient;
+	}
+
+	/**
+	 * Fetch remote theme data.
+	 * * @param string $slug Theme slug.
+	 * @return array|bool Array of data or false on failure.
+	 */
+	private function get_remote_theme_data( $slug ) {
+		$endpoint = \CLASSICPRESS_DIRECTORY_INTEGRATION_URL . 'themes?slug=' . rawurlencode( $slug );
+		
+		$response = wp_remote_get( $endpoint, array(
+			'user-agent' => classicpress_user_agent( true ),
+		) );
+
+		if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
+			return false;
+		}
+
+		$data = json_decode( wp_remote_retrieve_body( $response ), true );
+
+		if ( empty( $data ) || ! is_array( $data ) ) {
+			return false;
+		}
+
+		$theme = $data[0];
+
+		return array(
+			'theme'       => $slug,
+			'new_version' => $theme['meta']['current_version'] ?? '0.0.0',
+			'url'         => $theme['link'] ?? '',
+			'package'     => $theme['meta']['download_link'] ?? '',
+			'requires'    => $theme['meta']['requires_cp'] ?? '',
+			'requires_php' => $theme['meta']['requires_php'] ?? '',
+		);
 	}
 }
