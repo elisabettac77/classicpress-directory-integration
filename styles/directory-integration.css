@@ -1,214 +1,47 @@
-/* ==========================================================================
-   ClassicPress Directory Integration Grid
-   ========================================================================== */
-.cp-directory-wrap {
-	max-width: 1200px;
-	margin-top: 20px;
-}
-.cp-directory-header {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	margin-bottom: 20px;
-}
-.cp-directory-grid {
-	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-	gap: 20px;
-	align-items: start;
-}
-.cp-card {
-	background: #fff;
-	border: 1px solid #c3c4c7;
-	border-radius: 4px;
-	display: flex;
-	flex-direction: column;
-	overflow: hidden;
-	box-shadow: 0 1px 1px rgba(0,0,0,0.04);
-}
-.cp-card-visual {
-	position: relative;
-	height: 150px;
-	background-color: #f0f0f1;
-	border-bottom: 1px solid #dcdcde;
-}
-.cp-shield-badge {
-	position: absolute;
-	top: 10px;
-	right: 10px;
-	background: #fff;
-	border-radius: 50%;
-	width: 28px;
-	height: 28px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-	color: #2271b1;
-	z-index: 2;
-}
-.cp-card-banner, .cp-card-screenshot {
-	width: 100%;
-	height: 100%;
-	background-size: cover;
-	background-position: center;
-}
-.cp-card-description {
-	padding: 15px;
-	font-size: 13px;
-	color: #3c434a;
-}
-.cp-card-bottom-bar {
-	display: flex;
-	flex-wrap: wrap;
-	padding: 15px;
-	background: #f6f7f7;
-	border-top: 1px solid #dcdcde;
-	align-items: center;
-	justify-content: space-between;
-	gap: 10px;
-}
-.cp-card-info {
-	flex: 1 1 100%;
-	margin-bottom: 10px;
-}
-.cp-card-title {
-	margin: 0 0 5px 0;
-	font-size: 16px;
-	line-height: 1.3;
-}
-.cp-card-author {
-	font-size: 12px;
-	color: #646970;
-}
-.cp-card-details {
-	flex: 0 0 auto;
-}
-.cp-details-button {
-	background: none;
-	border: none;
-	color: #2271b1;
-	text-decoration: underline;
-	cursor: pointer;
-	padding: 0;
-	font-size: 13px;
-}
-.cp-card-action {
-	flex: 0 0 auto;
-	text-align: right;
-}
-.cp-action-group {
-	display: flex;
-	flex-direction: column;
-	gap: 5px;
+/* Unified Grid Layout */
+.cpdi-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
 }
 
-/* ==========================================================================
-   Slide-Out Drawer Modal (Bulletproof Rewrite)
-   ========================================================================== */
-
-/* 1. The Dialog Shell */
-dialog#cp-details-modal {
-	position: fixed !important;
-	inset: 0 0 0 auto !important; /* Lock to right side */
-	margin: 0 !important;
-	padding: 0 !important;
-	width: 100% !important;
-	max-width: 600px !important;
-	height: 100dvh !important;
-	max-height: 100dvh !important;
-	border: none !important;
-	background: #fff !important;
-	box-shadow: -5px 0 30px rgba(0,0,0,0.15) !important;
-	overflow: hidden !important; 
-	z-index: 100000 !important;
-	color: #3c434a;
+/* Side Drawer Styles using <dialog> */
+.cpdi-drawer {
+    border: none;
+    height: 100%;
+    max-height: 100%;
+    width: 400px;
+    position: fixed;
+    top: 0;
+    right: -400px; /* Hidden by default */
+    margin: 0;
+    margin-left: auto;
+    background: #fff;
+    box-shadow: -5px 0 15px rgba(0,0,0,0.1);
+    transition: right 0.3s ease;
+    display: flex;
+    flex-direction: column;
 }
 
-dialog#cp-details-modal::backdrop {
-	background: rgba(0, 0, 0, 0.6);
-	backdrop-filter: blur(2px);
+.cpdi-drawer[open] {
+    right: 0;
+    display: flex;
 }
 
-/* 2. Absolute Flex Containment */
-.cp-modal-content {
-	display: flex !important;
-	flex-direction: column !important;
-	height: 100% !important;
-	width: 100% !important;
-	overflow: hidden !important; /* Contains the scrollable body strictly */
+/* Back to Top Button */
+#cpdi-back-to-top {
+    position: fixed;
+    bottom: 40px;
+    right: 20px;
+    display: none; /* Shown via JS */
+    z-index: 99;
+    background: #2271b1;
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 4px;
+    cursor: pointer;
 }
 
-/* 3. Top visual - Never shrinks, static height */
-.cp-modal-visual {
-	flex: 0 0 250px !important;
-	width: 100% !important;
-	background-size: cover !important;
-	background-position: center !important;
-	background-repeat: no-repeat !important;
-	background-color: #2271b1 !important;
-	border-bottom: 1px solid #dcdcde !important;
-}
-
-/* 4. Body - Takes remaining space and scrolls internally */
-.cp-modal-body {
-	flex: 1 1 auto !important;
-	overflow-y: auto !important;
-	overflow-x: hidden !important;
-	padding: 30px 40px !important;
-	background: #fff !important;
-	scroll-behavior: auto !important;
-	outline: none !important; /* For the tabindex override */
-}
-
-/* 5. Footer - Never shrinks, static height at bottom */
-.cp-modal-footer {
-	flex: 0 0 auto !important;
-	padding: 20px 40px !important;
-	background: #f6f7f7 !important;
-	border-top: 1px solid #dcdcde !important;
-	display: flex !important;
-	justify-content: flex-end !important;
-	align-items: center !important;
-}
-
-/* Close Button */
-button.cp-modal-close {
-	position: absolute !important;
-	top: 20px !important;
-	right: 20px !important;
-	width: 40px !important;
-	height: 40px !important;
-	border-radius: 50% !important;
-	background: #fff !important;
-	border: 1px solid rgba(0, 0, 0, 0.1) !important;
-	box-shadow: 0 2px 10px rgba(0,0,0,0.15) !important;
-	display: flex !important;
-	align-items: center !important;
-	justify-content: center !important;
-	cursor: pointer !important;
-	z-index: 100001 !important;
-	color: #3c434a !important;
-}
-button.cp-modal-close:hover {
-	color: #d63638 !important;
-	transform: scale(1.05);
-}
-
-/* Modal Typography */
-.cp-modal-title { margin: 0 0 10px !important; font-size: 2em !important; font-weight: 600 !important; line-height: 1.2 !important; color: #1d2327 !important; }
-.cp-modal-version { font-size: 13px !important; background: #f0f0f1 !important; padding: 4px 8px !important; border-radius: 12px !important; vertical-align: middle !important; color: #50575e !important; font-weight: 600 !important; display: inline-block !important; margin-left: 8px !important; }
-.cp-modal-author { margin: 0 0 25px !important; color: #646970 !important; font-size: 15px !important; }
-.cp-modal-description h1, .cp-modal-description h2, .cp-modal-description h3 { margin-top: 1.5em !important; margin-bottom: 0.5em !important; color: #1d2327 !important; }
-.cp-modal-description p { margin-bottom: 1em !important; font-size: 14px !important; line-height: 1.6 !important;}
-
-/* Animations */
-dialog#cp-details-modal[open] { animation: cpSlideInRight 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
-dialog#cp-details-modal.cp-is-closing { animation: cpSlideOutRight 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
-dialog#cp-details-modal[open]::backdrop { animation: cpFadeIn 0.35s ease forwards; }
-dialog#cp-details-modal.cp-is-closing::backdrop { animation: cpFadeOut 0.3s ease forwards; }
-
-@keyframes cpSlideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
-@keyframes cpSlideOutRight { from { transform: translateX(0); } to { transform: translateX(100%); } }
-@keyframes cpFadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes cpFadeOut { from { opacity: 1; } to { opacity: 0; } }
+#cpdi-back-to-top:hover { background: #135e96; }
