@@ -20,7 +20,7 @@
  * -----------------------------------------------------------------------------
  */
 
-// Declare the namespace.
+// Declare the namespace for the main loader.
 namespace ClassicPress\Directory;
 
 // Prevent direct access.
@@ -28,20 +28,30 @@ if ( ! defined( 'ABSPATH' ) ) {
 	die();
 }
 
-// Bail if on WordPress
+/**
+ * Bail if on WordPress.
+ */
 if ( ! function_exists( 'classicpress_version' ) ) {
-	add_action( 'admin_init', 'ClassicPress\Directory\deactivate_plugin_now' );
-	add_action( 'admin_notices', 'ClassicPress\Directory\error_is_wp' );
+	require_once ABSPATH . 'wp-admin/includes/plugin.php';
+	add_action( 'admin_init', __NAMESPACE__ . '\deactivate_plugin_now' );
+	add_action( 'admin_notices', __NAMESPACE__ . '\error_is_wp' );
 	unset( $_GET['activate'] ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 	return;
 }
 
+/**
+ * Deactivate plugin on WP.
+ */
 function deactivate_plugin_now() {
-	if ( is_plugin_active( 'classicpress-directory-integration/classicpress-directory-integration.php' ) ) {
-		deactivate_plugins( 'classicpress-directory-integration/classicpress-directory-integration.php' );
+	$plugin_path = 'classicpress-directory-integration/classicpress-directory-integration.php';
+	if ( is_plugin_active( $plugin_path ) ) {
+		deactivate_plugins( $plugin_path );
 	}
 }
 
+/**
+ * Error notice on WP.
+ */
 function error_is_wp() {
 	$class   = 'notice notice-error';
 	$message = __( 'ClassicPress Directory integration is a plugin meant to only work on ClassicPress sites.', 'classicpress-directory-integration' );
@@ -50,51 +60,58 @@ function error_is_wp() {
 
 const DB_VERSION = 1;
 
-// Load non namespaced constants and functions
-require_once 'includes/constants.php';
-require_once 'includes/functions.php';
+// Load non-namespaced constants and functions.
+require_once plugin_dir_path( __FILE__ ) . 'includes/constants.php';
+require_once plugin_dir_path( __FILE__ ) . 'includes/functions.php';
 
-// Load Helpers trait.
-require_once 'classes/trait-helpers.php';
+/**
+ * Load Classes.
+ * * We use the fully qualified class names including the \Integration sub-namespace
+ * used in the actual class files.
+ */
+require_once plugin_dir_path( __FILE__ ) . 'classes/trait-helpers.php';
 
-// --- NEW: Load Abstract Update Base Class ---
-require_once 'classes/class-abstract-update.php';
+// Load Update logic (Front-end and Admin).
+require_once plugin_dir_path( __FILE__ ) . 'classes/class-abstract-update.php';
+require_once plugin_dir_path( __FILE__ ) . 'classes/class-plugin-update.php';
+require_once plugin_dir_path( __FILE__ ) . 'classes/class-theme-update.php';
 
-// Load Plugin Update functionality class.
-require_once 'classes/class-plugin-update.php';
-$plugin_update = new PluginUpdate();
+// Instantiate Updates.
+new \ClassicPress\Directory\Integration\Plugin_Update();
+new \ClassicPress\Directory\Integration\Theme_Update();
 
-// Load Theme Update functionality class.
-require_once 'classes/class-theme-update.php';
-$theme_update = new ThemeUpdate();
-
-// Register text domain
+/**
+ * Register text domain.
+ */
 function register_text_domain() {
-	load_plugin_textdomain( 'classicpress-directory-integration', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
+	load_plugin_textdomain( 
+		'classicpress-directory-integration', 
+		false, 
+		dirname( plugin_basename( __FILE__ ) ) . '/languages' 
+	);
 }
-add_action( 'plugins_loaded', '\ClassicPress\Directory\register_text_domain' );
+add_action( 'plugins_loaded', __NAMESPACE__ . '\register_text_domain' );
 
-// Add commands to WP-CLI
-require_once 'classes/class-wpcli.php';
+/**
+ * WP-CLI Support.
+ */
 if ( defined( 'WP_CLI' ) && WP_CLI ) {
+	require_once plugin_dir_path( __FILE__ ) . 'classes/class-wpcli.php';
 	\WP_CLI::add_command( 'cpdi', '\ClassicPress\Directory\CPDICLI' );
 }
 
-if ( ! is_admin() ) {
-	return;
+/**
+ * Admin-only logic (Installers).
+ */
+if ( is_admin() ) {
+	require_once plugin_dir_path( __FILE__ ) . 'classes/class-abstract-install.php';
+	require_once plugin_dir_path( __FILE__ ) . 'classes/class-plugin-install-skin.php';
+	require_once plugin_dir_path( __FILE__ ) . 'classes/class-theme-install-skin.php';
+	
+	require_once plugin_dir_path( __FILE__ ) . 'classes/class-plugin-install.php';
+	require_once plugin_dir_path( __FILE__ ) . 'classes/class-theme-install.php';
+
+	// Instantiate Installers.
+	new \ClassicPress\Directory\Integration\Plugin_Install();
+	new \ClassicPress\Directory\Integration\Theme_Install();
 }
-
-// --- NEW: Load Abstract Install Base Class ---
-require_once 'classes/class-abstract-install.php';
-
-// --- NEW: Load Extracted Upgrader Skins ---
-require_once 'classes/class-plugin-install-skin.php';
-require_once 'classes/class-theme-install-skin.php';
-
-// Load Plugin Install functionality class.
-require_once 'classes/class-plugin-install.php';
-$plugin_install = new PluginInstall();
-
-// Load Theme Install functionality class.
-require_once 'classes/class-theme-install.php';
-$theme_install = new ThemeInstall();
