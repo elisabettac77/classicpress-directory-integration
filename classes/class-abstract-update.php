@@ -21,16 +21,16 @@ abstract class Abstract_Update {
 	/**
 	 * Cached directory data.
 	 *
-	 * @var array|false
+	 * @var array|bool
 	 */
-	protected array|false $cp_items_directory_data = false;
+	protected $cp_items_directory_data = false;
 
 	/**
 	 * Cached items list.
 	 *
-	 * @var array|false
+	 * @var array|bool
 	 */
-	protected array|false $cp_items = false;
+	protected $cp_items = false;
 
 	/**
 	 * Type of update ('plugins' or 'themes').
@@ -64,17 +64,18 @@ abstract class Abstract_Update {
 	/**
 	 * Filter the update URI response.
 	 *
-	 * @param array|false $update      Update data.
-	 * @param array       $item_data   Item data.
-	 * @param string      $item_file   Item file.
-	 * @param array       $locales     Locales.
-	 * @return array|false
+	 * @param array|bool  $update    Update data.
+	 * @param array       $item_data Item data.
+	 * @param string      $item_file Item file.
+	 * @param array       $locales   Locales.
+	 * @return array|bool
 	 */
-	abstract public function update_uri_filter( array|false $update, array $item_data, string $item_file, array $locales ): array|false;
+	abstract public function update_uri_filter( $update, array $item_data, string $item_file, array $locales );
 
 	/**
 	 * Refresh directory data.
-	 * * @return void
+	 *
+	 * @return void
 	 */
 	public function refresh_cp_directory_data(): void {
 		$this->get_directory_data( true );
@@ -134,7 +135,6 @@ abstract class Abstract_Update {
 				'RequiresPHP'     => $single_data['meta']['requires_php'] ?? '',
 				'RequiresCP'      => $single_data['meta']['requires_cp'] ?? '',
 				'active_installs' => $single_data['meta']['active_installations'] ?? 0,
-				// Include parent_theme for Phase 2 child theme support
 				'ParentSlug'      => $single_data['meta']['parent_theme'] ?? '',
 			);
 		}
