@@ -1,0 +1,33 @@
+ITEM MODEL
+
+* type
+* slug
+* name
+* visual — screenshot/banner/icon
+* headers / metadata
+* short_description
+* long_description
+* taxonomy_terms
+* parent_theme/child_theme
+* passes_cpcs
+* installed
+* active
+* update_available
+* origin (visual cue - teal card border)
+* actions derived from states
+
+STATES
+
+| State                        | Primary action                                                    | Secondary actions                                      |
+| ---------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------ |
+| Not installed                | Install                                                           | Details                                                |
+| Installed inactive           | Activate                                                          | Delete, Details                                        |
+| Installed active             | Customize/Manage for themes, or primary manage action for plugins | Deactivate, Details                                    |
+| Installed + update available | Update                                                            | Activate/Deactivate depending on active state, Details |
+
+MODIFIERS
+
+* Parent theme/Child theme
+* CPCS shield
+* Transient action states (installing, updating, deleting, activating)
+* Error
